@@ -1,3 +1,21 @@
+/*
+Context steering based control for AI
+See https://andrewfray.wordpress.com/2013/03/26/context-behaviours-know-how-to-share/
+https://www.gameaipro.com/GameAIPro2/GameAIPro2_Chapter18_Context_Steering_Behavior-Driven_Steering_at_the_Macro_Scale.pdf
+and https://alliekeats.com/portfolio/contextbhvr.html for more in depth descriptions.
+Essentially agents determine where to go by using a set of arrays called context maps, these maps
+can either hold "interest": ie how much the ai wants to move in a particular direction, or
+"danger": how much an ai should avoid a particular direction. Once the ai has the context of what
+ to do, it can make a final decision on its heading.
+Each of these maps can be combined like image filters, leading to simple and stateless
+AI that is still amendmedable to emergent behaviors and avoids deadlock.
+
+The strategy for implementing context steering is as follows:
+1. identity the necessary behaviors (seek, avoid, face target, wander ect) and populate their context maps
+2. combine behaviors together using simple arithmetic where possible like filters
+3. Make a decision based on the final interest and danger context maps, importantly decision-making
+should be the LAST step.
+ */
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
