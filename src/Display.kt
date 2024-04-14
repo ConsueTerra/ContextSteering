@@ -1,83 +1,94 @@
-import java.awt.Color;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Point;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Path2D;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
+import java.awt.Color
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.geom.Path2D
+import javax.swing.JFrame
+import javax.swing.JPanel
 
-public class Display extends JPanel {
-
-    static int size = 10;
-    static final Path2D shape = new Path2D.Double();
-
-    static {
-        shape.moveTo(0, -size * 2);
-        shape.lineTo(-size, size * 2);
-        shape.lineTo(size, size * 2);
-        shape.closePath();
+class Display(w: Int, h: Int) : JPanel() {
+    init {
+        val frame = JFrame("Agents")
+        frame.setSize(w, h)
+        frame.isVisible = true
+        frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+        frame.add(this)
     }
 
-    public Display(int w, int h) {
-        JFrame frame = new JFrame("Agents");
-        frame.setSize(w,h);
-        frame.setVisible(true);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.add(this);
-    }
-
-    @Override
-    public void paint (Graphics g) {
-        super.paintComponent(g);
-        for (Agent agent : Simulation.agents) {
-            drawAgent(agent, (Graphics2D) g);
+    override fun paint(g: Graphics) {
+        super.paintComponent(g)
+        for (agent in Simulation.agents) {
+            drawAgent(agent, g as Graphics2D)
         }
     }
 
-    public void drawAgent(Agent agent,Graphics2D g){
-        AffineTransform save = g.getTransform();
+    fun drawAgent(agent: Agent, g: Graphics2D) {
+        val save = g.transform
         //draw agent
-        g.translate(agent.pos.x, agent.pos.y);
-        g.rotate(agent.heading.toPolar().y);
-        g.setColor(Color.white);
-        g.fill(shape);
-        g.setColor(Color.black);
-        g.draw(shape);
-        g.setTransform(save);
+        g.translate(agent.pos.x, agent.pos.y)
+        g.rotate(agent.heading.toPolar().y)
+        g.color = Color.white
+        g.fill(shape)
+        g.color = Color.black
+        g.draw(shape)
+        g.transform = save
 
         //draw context map and other vectors
-        g.translate(agent.pos.x, agent.pos.y);
-
+        g.translate(agent.pos.x, agent.pos.y)
         if (true) {
-            for (int i = 0; i < ContextMap.numbins; i++) {
-                Vector2D dir = ContextMap.bindir[i];
-                float mag = agent.movementInterest.bins[i];
-                mag = mag < 0 ? 0.0F: mag;
-                g.setColor(Color.green);
-                g.drawLine(0,0, (int) (dir.x * mag * size* size), (int) (dir.y *mag* size* size));
-                mag = agent.rotationInterest.bins[i];
-                mag = mag < 0 ? 0.0F: mag;
-                g.setColor(Color.red);
-                g.drawLine(0,0, (int) (dir.x * mag * size* size), (int) (dir.y *mag* size* size));
+            for (i in 0 until ContextMap.numbins) {
+                val dir: Vector2D = ContextMap.bindir[i]
+                var mag = agent.movementInterest.bins[i]
+                mag = if (mag < 0) 0.0 else mag
+                g.color = Color.green
+                g.drawLine(
+                    0,
+                    0,
+                    (dir.x * mag * Companion.size * Companion.size).toInt(),
+                    (dir.y * mag * Companion.size * Companion.size).toInt()
+                )
+                mag = agent.rotationInterest.bins[i]
+                mag = if (mag < 0) 0.0 else mag
+                g.color = Color.red
+                g.drawLine(
+                    0,
+                    0,
+                    (dir.x * mag * Companion.size * Companion.size).toInt(),
+                    (dir.y * mag * Companion.size * Companion.size).toInt()
+                )
             }
         }
-
-        g.setColor(Color.blue);
-        g.drawLine(0,0, (int) (agent.thrust.x * size), (int) (agent.thrust.y * size));
-        g.setTransform(save);
-
-
+        g.color = Color.blue
+        g.drawLine(
+            0,
+            0,
+            (agent.thrust.x * Companion.size).toInt(),
+            (agent.thrust.y * Companion.size).toInt()
+        )
+        g.transform = save
     }
 
-    /**
-     * The current mouse cords, if the mouse its outside the bounds then the center of the canvas
-     */
-    public Vector2D getMouseCords() {
-        Point point = this.getMousePosition();
-        if (point == null) {
-            return new Vector2D((float) Simulation.w / 2, (float) Simulation.h / 2);
+    val mouseCords: Vector2D
+        /**
+         * The current mouse cords, if the mouse its outside the bounds then the center of the canvas
+         */
+        get() {
+            val point = this.mousePosition
+                ?: return Vector2D(
+                    Simulation.w / 2.0,
+                    Simulation.h / 2.0
+                )
+            return Vector2D(point.x.toDouble(), point.y.toDouble())
         }
-        return new Vector2D(point.x, point.y);
+
+    companion object {
+        var size = 10
+        val shape: Path2D = Path2D.Double()
+
+        init {
+            shape.moveTo(0.0, (-size * 2).toDouble())
+            shape.lineTo(-size.toDouble(), (size * 2).toDouble())
+            shape.lineTo(size.toDouble(), (size * 2).toDouble())
+            shape.closePath()
+        }
     }
 }

@@ -1,47 +1,45 @@
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.ArrayList;
-import java.util.List;
-import javax.swing.Timer;
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
+import javax.swing.Timer
 
-public class Simulation implements ActionListener {
+class Simulation(numAgents: Int) : ActionListener {
+    var display: Display
 
-    static List<Agent> agents = new ArrayList<>();
-    static int w = 1000;
-    static int h = 1000;
-
-    static Vector2D mouseCords;
-
-    Display display;
-    public Simulation(int numAgents) {
-        display = new Display(w,h);
-        setup(numAgents);
-        Timer timer = new Timer(16, this);
-        timer.restart();
+    init {
+        display = Display(w, h)
+        setup(numAgents)
+        val timer = Timer(16, this)
+        timer.restart()
     }
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        tick();
-        display.repaint();
+    override fun actionPerformed(e: ActionEvent) {
+        tick()
+        display.repaint()
     }
-    void tick() {
-        mouseCords = display.getMouseCords();
-        for (Agent agent : agents){
-            agent.steer();
-            Vector2D accel = agent.thrust;
-            accel = accel.mult(1/agent.mass);
-            agent.velocity = agent.velocity.add(accel).clip(Agent.MAXSPEED);
-            agent.pos = agent.pos.add(agent.velocity).wrap(w,h);
-            if (agent.pos.x == 0.0f && agent.pos.y == 0.0f) agent.pos =  agent.pos.add(1.0f,1.0f);
+
+    fun tick() {
+        mouseCords = display.mouseCords
+        for (agent in agents) {
+            agent.steer()
+            var accel = agent.thrust
+            accel = accel.mult(1 / agent.mass)
+            agent.velocity = agent.velocity.add(accel).clip(Agent.MAXSPEED)
+            agent.pos = agent.pos.add(agent.velocity).wrap(w.toDouble(), h.toDouble())
+            if (agent.pos.x == 0.0 && agent.pos.y == 0.0) agent.pos = agent.pos.add(1.0, 1.0)
         }
     }
 
-    void setup(int numAgents) {
-        for (int i = 0; i < numAgents; i++) {
-            Agent agent = new Agent(w,h);
-            agents.add(agent);
+    fun setup(numAgents: Int) {
+        for (i in 0 until numAgents) {
+            val agent = Agent(w, h)
+            agents.add(agent)
         }
     }
 
+    companion object {
+        var agents: MutableList<Agent> = ArrayList()
+        var w = 1000
+        var h = 1000
+        var mouseCords = Vector2D(0.0,0.0)
+    }
 }

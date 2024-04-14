@@ -1,81 +1,88 @@
-import java.util.Arrays;
-import java.util.List;
+import java.util.Arrays
 
 /**
  * A context map stores a set of direction and how good or bad to move in those directions,
  * directions radiate out of the agent like spokes of a wheel
- * each different context map is sinonimous with a behavior.<p>
+ * each different context map is sinonimous with a behavior.
+ *
+ *
  * Context maps use cartesian coordinates for directions, however unless otherwise noted, the
  * orientation of the context map does not matter (ie works the same if (0,0) is on the top left
  * or bottom left)
  */
-public abstract class ContextMap {
-    static int numbins = 16;
-    float[] bins = new float[numbins];
-    static final Vector2D[] bindir = new Vector2D[numbins];
-    static {
-        for (int i = 0; i < numbins;i++) {
-            float theta = (float) (2.0* Math.PI / numbins * i);
-            bindir[i] = new Vector2D(1.0F, theta).toCartesian();
+abstract class ContextMap {
+
+    companion object {
+        var numbins = 16
+        val bindir = Array(numbins) {
+                i ->
+            val theta = (2.0 * Math.PI / numbins * i)
+            Vector2D(1.0, theta).toCartesian()
+        }
+
+        fun scaled(map: ContextMap, `val`: Double): ContextMap {
+            val output: ContextMap = object : ContextMap(map) {}
+            output.multScalar(`val`)
+            return output
         }
     }
 
-    public ContextMap() {
-        Arrays.fill(bins, 0.0F);
+    var bins = DoubleArray(numbins)
+
+
+    constructor() {
+        Arrays.fill(bins, 0.0)
     }
-    public ContextMap(ContextMap other) {
-        for (int i = 0; i < numbins; i++) {
-            bins[i] = other.bins[i];
+
+    constructor(other: ContextMap) {
+        for (i in 0 until numbins) {
+            bins[i] = other.bins[i]
         }
     }
 
-    public void populateContext(Agent agent, List<ContextMap> otherContexts) {};
+    open fun populateContext() {}
 
     /**
      * Sets all bins to 0.0
      */
-    public final void clearContext() {
-        Arrays.fill(bins, 0.0F);
+    fun clearContext() {
+        Arrays.fill(bins, 0.0)
     }
 
     /**
      * Takes the dot product of a input direction, and the different directional bins of the
      * context map, the directional bin closest to the input direction will have the highest
-     * magnitude. <p>
+     * magnitude.
+     *
+     *
      * Taking the dot product is ideal for giving an agent more options to choose from in making
      * a decision
      * @param direction to check against
      * @param shift shift the dot product from [-1,1] with + value
      * @param scale scales the dot product after shifting, ie to provide more magnitude to the bins.
      */
-    public final void dotContext(Vector2D direction, float shift, float scale) {
-        for (int i = 0; i < numbins;i++) {
-            bins[i] += (bindir[i].dot(direction) + shift) * scale;
+    fun dotContext(direction: Vector2D, shift: Double, scale: Double) {
+        for (i in 0 until numbins) {
+            bins[i] += (bindir[i].dot(direction) + shift) * scale
         }
     }
 
-    public final void addContext(ContextMap other) {
-        for (int i = 0; i < numbins; i++) {
-            this.bins[i] += other.bins[i];
+    fun addContext(other: ContextMap) {
+        for (i in 0 until numbins) {
+            bins[i] += other.bins[i]
         }
     }
 
-    public final void addScalar(float val) {
-        for (int i = 0; i < numbins; i++) {
-            this.bins[i] += val;
+    fun addScalar(`val`: Double) {
+        for (i in 0 until numbins) {
+            bins[i] += `val`
         }
     }
 
-    public  final void multScalar(float val) {
-        for (int i = 0; i < numbins; i++) {
-            this.bins[i] *= val;
+    fun multScalar(`val`: Double) {
+        for (i in 0 until numbins) {
+            bins[i] *= `val`
         }
-    }
-
-    public static ContextMap scaled(ContextMap map,float val) {
-        ContextMap output = new ContextMap(map) { };
-        output.multScalar(val);
-        return output;
     }
 
     /**
@@ -84,10 +91,10 @@ public abstract class ContextMap {
      * @param other the danger context map
      * @param threshold
      */
-    public final void maskContext(ContextMap other, float threshold) {
-        for (int i = 0; i < numbins; i++) {
+    fun maskContext(other: ContextMap, threshold: Double) {
+        for (i in 0 until numbins) {
             if (other.bins[i] >= threshold) {
-                this.bins[i] = -1000.0f;
+                bins[i] = -1000.0
             }
         }
     }
@@ -95,20 +102,24 @@ public abstract class ContextMap {
     /**
      * Finds the argmax and adjacent bins, because context maps are circular, indices wrap around
      */
-    public final int[] maxAdjacent() {
-        int[] indices = new int[3];
-        indices[0] = 0; indices[1] = 1; indices[2] = 2;
-        float maxVal = bins[1];
-        for (int i = 2; i != 1; i = (i + 1) % numbins) {
-            float val = bins[i];
-            if (val > maxVal) {
-                indices[0] = (i - 1 + numbins) % numbins;
-                indices[1] = i;
-                indices[2] = (i + 1) % numbins;
-                maxVal = val;
+    fun maxAdjacent(): IntArray {
+        val indices = IntArray(3)
+        indices[0] = 0
+        indices[1] = 1
+        indices[2] = 2
+        var maxVal = bins[1]
+        var i = 2
+        while (i != 1) {
+            val `val` = bins[i]
+            if (`val` > maxVal) {
+                indices[0] = (i - 1 + numbins) % numbins
+                indices[1] = i
+                indices[2] = (i + 1) % numbins
+                maxVal = `val`
             }
+            i = (i + 1) % numbins
         }
-        return indices;
+        return indices
     }
 
     /**
@@ -117,30 +128,31 @@ public abstract class ContextMap {
      * negative weights are ignored
      * @return The proposed interpolated decision (in cartesian cords)
      */
-    public final Vector2D interpolatedMaxDir() {
-        int[] indices = maxAdjacent();
-        float[] vals = {bins[indices[0]], bins[indices[1]], bins[indices[2]]};
-        Vector2D[] dirs = {bindir[indices[0]], bindir[indices[1]], bindir[indices[2]]};
+    fun interpolatedMaxDir(): Vector2D {
+        val indices = maxAdjacent()
+        val vals = doubleArrayOf(bins[indices[0]], bins[indices[1]], bins[indices[2]])
+        val dirs = arrayOf(bindir[indices[0]], bindir[indices[1]], bindir[indices[2]])
 
         //soft max
-        float sum = 1e-5f;
-        for (int i = 0; i < 3; i++) {
+        var sum = 1e-5
+        for (i in 0..2) {
             //vals[i] = (float) Math.exp(vals[i]);
-            vals[i] = vals[i] < 0 ? 0.0F: vals[i];
-            sum += vals[i];
+            vals[i] = if (vals[i] < 0) 0.0 else vals[i]
+            sum += vals[i]
         }
-        for (int i = 0; i < 3; i++) {
-            vals[i] /= sum;
+        for (i in 0..2) {
+            vals[i] /= sum
         }
 
         //interpolate
-        Vector2D output = new Vector2D(0.0F,0.0F);
-        for (int i = 0; i < 3; i++) {
-            output = output.add(dirs[i].mult(vals[i]));
+        var output = Vector2D(0.0, 0.0)
+        for (i in 0..2) {
+            output = output.add(dirs[i].mult(vals[i]))
         }
         //if no decision was made then default to face east
-        if (output.mag() < 1e-5f) output = new Vector2D(1,0);
-        output = output.normal();
-        return output;
+        if (output.mag() < 1e-5) output = Vector2D(1.0, 0.0)
+        output = output.normal()
+        return output
     }
+
 }

@@ -1,60 +1,70 @@
-public class Vector2D {
-    final float x;
-    final float y;
+import kotlin.String
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.require
 
-    public Vector2D(float x, float y) {
-        if (Float.isNaN(x)) throw new IllegalArgumentException("x value is Nan");
-        if (Float.isNaN(y)) throw new IllegalArgumentException("y value is Nan");
-        this.x = x;
-        this.y = y;
+class Vector2D(x: Double, y: Double) {
+    val x: Double
+    val y: Double
+
+    init {
+        require(!x.isNaN()) { "x value is Nan" }
+        require(!y.isNaN()) { "y value is Nan" }
+        this.x = x
+        this.y = y
     }
 
-    public Vector2D add(Vector2D other) {
-        return new Vector2D(this.x + other.x, this.y + other.y);
+    fun add(other: Vector2D): Vector2D {
+        return Vector2D(x + other.x, y + other.y)
     }
 
-    public Vector2D add(float x, float y) {
-        return this.add(new Vector2D(x,y));
+    fun add(x: Double, y: Double): Vector2D {
+        return this.add(Vector2D(x, y))
     }
 
-    public Vector2D mult(float s) {
-        return new Vector2D(this.x * s, this.y * s);
+    fun mult(s: Double): Vector2D {
+        return Vector2D(x * s, y * s)
     }
 
-    public float mag() {
-        return (float) Math.sqrt(Math.pow(this.x,2)+Math.pow(this.y,2));
+    fun mag(): Double {
+        return sqrt(x.pow(2.0) + y.pow(2.0))
     }
 
-    public  Vector2D normal() {
-        return mult(1 /mag());
+    fun normal(): Vector2D {
+        return mult(1 / mag())
     }
 
-    public Vector2D clip(float s) {
-        return (mag() > s) ? normal().mult(s) : new Vector2D(this.x, this.y);
+    fun clip(s: Double): Vector2D {
+        return if (mag() > s) normal().mult(s) else Vector2D(x, y)
     }
 
-    public Vector2D wrap(float w, float h) {
-        float x  = (this.x + w) % w;
-        float y = (this.y + h) % h;
-        return new Vector2D(x, y);
+    fun wrap(w: Double, h: Double): Vector2D {
+        val x = (x + w) % w
+        val y = (y + h) % h
+        return Vector2D(x, y)
     }
 
-    public float dot(Vector2D other) {
-        return this.x * other.x + this.y * other.y;
+    fun dot(other: Vector2D):Double {
+        return x * other.x + y * other.y
     }
 
-    public Vector2D toPolar() {
-        float r = mag();
-        float theta = (float) Math.atan2(this.x, -this.y);
-        return new Vector2D(r,theta);
+    fun toPolar(): Vector2D {
+        val r = mag()
+        val theta = atan2(x, -y)
+        return Vector2D(r, theta)
     }
 
-    public Vector2D toCartesian() {
-        return new Vector2D((float) (this.x * Math.cos(this.y)), (float) (this.x * Math.sin(this.y)));
+    fun toCartesian(): Vector2D {
+        return Vector2D(
+            (x * cos(y)),
+            (x * sin(y))
+        )
     }
 
-    @Override
-    public String toString() {
-        return "Vector2D(" + x + "," + y + ")";
+    override fun toString(): String {
+        return "Vector2D($x,$y)"
     }
 }

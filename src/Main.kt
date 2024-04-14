@@ -1,5 +1,6 @@
-public class Main {
-    public static void main(String[] args) {
-        Simulation sim = new Simulation(4);
+object Main {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val sim = Simulation(4)
     }
 }
