@@ -1,6 +1,8 @@
 import kotlin.String
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -44,6 +46,12 @@ class Vector2D(x: Double, y: Double) {
     fun wrap(w: Double, h: Double): Vector2D {
         val x = (x + w) % w
         val y = (y + h) % h
+        return Vector2D(x, y)
+    }
+
+    fun bound(w: Double, h: Double, buffer: Double =  10.0) : Vector2D {
+        val x = max(min(x,w - buffer ), buffer)
+        val y = max(min(y,h - buffer ), buffer)
         return Vector2D(x, y)
     }
 
