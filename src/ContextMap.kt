@@ -1,4 +1,5 @@
 import java.util.Arrays
+import kotlin.math.exp
 
 /**
  * A context map stores a set of direction and how good or bad to move in those directions,
@@ -61,10 +62,11 @@ abstract class ContextMap {
      * @param shift shift the dot product from [-1,1] with + value
      * @param scale scales the dot product after shifting, ie to provide more magnitude to the bins.
      */
-    fun dotContext(direction: Vector2D, shift: Double, scale: Double) {
+    fun dotContext(direction: Vector2D, shift: Double, scale: Double, clipZero: Boolean = true) {
         for (i in 0 until numbins) {
             bins[i] += (bindir[i].dot(direction) + shift) * scale
         }
+        if (clipZero) clipZero()
     }
 
     fun addContext(other: ContextMap) {
@@ -85,6 +87,12 @@ abstract class ContextMap {
         }
     }
 
+    fun clipZero() {
+        for (i in 0 until numbins) {
+            if (bins[i] < 0.0) bins[i] = 0.0
+        }
+    }
+
     /**
      * Masks a context using a danger, masking is essential for obstical avoidance and making sure
      * the agent does not make incorrect decisions.
@@ -96,6 +104,19 @@ abstract class ContextMap {
             if (other.bins[i] >= threshold) {
                 bins[i] = -1000.0
             }
+        }
+    }
+
+    fun softMaskContext(other: ContextMap, threshold: Double) {
+        for (i in 0 until numbins) {
+            val sigmoid : Double
+            val x = (threshold - other.bins[i])*30.0
+            sigmoid = if (x < 0) {
+                exp(x) / (1.0 + exp(x))
+            } else {
+                1 / (1 + exp(-x))
+            }
+            bins[i] *= sigmoid
         }
     }
 
@@ -149,8 +170,8 @@ abstract class ContextMap {
         for (i in 0..2) {
             output = output.add(dirs[i].mult(vals[i]))
         }
-        //if no decision was made then default to face east
-        if (output.mag() < 1e-5) output = Vector2D(1.0, 0.0)
+        //if no decision was made then default to random direction
+        if (output.mag() < 1e-5) output = Vector2D(1.0, Math.random() * Math.PI * 2).toCartesian()
         output = output.normal()
         return output
     }

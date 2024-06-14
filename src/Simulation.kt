@@ -23,6 +23,7 @@ class Simulation(numAIShips: Int) : ActionListener {
             ship.handleMovement()
             var accel = ship.thrust
             accel = accel.mult(1 / ship.mass)
+            ship.velocity = ship.velocity.mult(0.95)//dragging force
             ship.velocity = ship.velocity.add(accel).clip(Ship.MAXSPEED)//#TODO fix this
             ship.pos = ship.pos.add(ship.velocity).bound(w.toDouble(), h.toDouble())
             if (ship.pos.x == 0.0 && ship.pos.y == 0.0) ship.pos = ship.pos.add(1.0, 1.0)

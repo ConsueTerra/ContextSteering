@@ -49,7 +49,7 @@ class Vector2D(x: Double, y: Double) {
         return Vector2D(x, y)
     }
 
-    fun bound(w: Double, h: Double, buffer: Double =  10.0) : Vector2D {
+    fun bound(w: Double, h: Double, buffer: Double =  20.0) : Vector2D {
         val x = max(min(x,w - buffer ), buffer)
         val y = max(min(y,h - buffer ), buffer)
         return Vector2D(x, y)

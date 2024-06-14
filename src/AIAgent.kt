@@ -16,9 +16,11 @@ The strategy for implementing context steering is as follows:
 3. Make a decision based on the final interest and danger context maps, importantly decision-making
 should be the LAST step.
  */
+import java.lang.Math.pow
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 
 /**
  * Standard AI for controling a ship, uses context steering for determing movement, the goal of
@@ -61,6 +63,9 @@ class AIAgent(ship: Ship) : Agent(ship) {
         faceMouse.clearContext()
         faceMouse.populateContext()
 
+        //momentum.clearContext()
+        commitment.populateContext()
+
         borderDanger.clearContext()
         borderDanger.populateContext()
 
@@ -69,10 +74,13 @@ class AIAgent(ship: Ship) : Agent(ship) {
 
         movementInterest.addContext(wander)
         movementInterest.addContext(offsetSeekMouse)
+        movementInterest.addContext(commitment)
+        movementInterest.clipZero() //safeguard against neg weights
 
         rotationInterest.addContext(movementInterest)
-        rotationInterest.multScalar(0.1)
+        rotationInterest.multScalar(0.2)
         rotationInterest.addContext(faceMouse)
+        //rotationInterest.addContext(ContextMap.scaled(momentum,0.8))
 
         danger.addContext(borderDanger)
         danger.addContext(shipDanger)
@@ -89,11 +97,12 @@ class AIAgent(ship: Ship) : Agent(ship) {
         // A current issue is that if the movement and rotation maps are equal and opposing
         // magnitude then it will lead to an agent jittering under a certain ship.velocity threshold.
         //mixing
-        val rotationMovementPrior =
-            max(min(ship.velocity.mag() / Ship.MAXSPEED, 1.0), 0.0)//TODO fix this
-        //rotationMovementPrior = 0.0f;
+        var rotationMovementPrior =
+            max(min(ship.velocity.mag() / Ship.MAXSPEED, 1.0), 0.0).pow(2.0)//TODO fix this
+        //println(rotationMovementPrior)
+        //rotationMovementPrior = 0.0;
         val temp: ContextMap = object : ContextMap(movementInterest) {}
-        val movementWeight = 1 - rotationMovementPrior
+        val movementWeight = (1 - rotationMovementPrior).pow(0.5)
         movementInterest.multScalar(movementWeight)
         movementInterest.addContext(
             ContextMap.scaled(
@@ -101,15 +110,15 @@ class AIAgent(ship: Ship) : Agent(ship) {
                 1 - movementWeight
             )
         )
-        val rotationWeight = rotationMovementPrior
+        val rotationWeight = rotationMovementPrior.pow(0.5)
         if (rotationWeight < 0) throw RuntimeException()
         rotationInterest.multScalar(rotationWeight)
         rotationInterest.addContext(ContextMap.scaled(temp, 1 - rotationWeight))
 
         //masking, if the danger for a certain direction is greater than the threshold then it is
         // masked out
-        movementInterest.maskContext(danger, 0.5)
-        rotationInterest.maskContext(danger, 0.5)
+        movementInterest.softMaskContext(danger, 1.0)
+        rotationInterest.softMaskContext(danger, 1.0)
 
 
         //decision time
@@ -171,6 +180,46 @@ class AIAgent(ship: Ship) : Agent(ship) {
     }
 
     /**
+     * Whenever an agent changes direction this context map will make the agent commit by
+     * discounting previous directions, greatly reduces jittering
+     */
+    var commitment: ContextMap = object : ContextMap() {
+        val weight = 1.0
+        val hist = 0.8
+        var headingHist: ContextMap = object : ContextMap() {}
+
+        override fun populateContext() {
+            clearContext()
+            headingHist.multScalar(hist)
+            val velNorm = ship.heading
+            headingHist.dotContext(velNorm,1.0,(1-hist))
+            dotContext(velNorm,-1.0,weight,false)
+            for (i in 0 until numbins) {
+                bins[i] *= headingHist.bins[i]
+            }
+        }
+    }
+
+    /**
+     * Makes tha agent favor directions with same heading, magnitude increases with lower speed
+     */
+    var momentum: ContextMap = object :  ContextMap() {
+        val weight = 2.0
+        val falloff = 1.0
+        val dotshift = -0.2
+        val hist = 0.8
+        override fun populateContext() {
+            multScalar(hist)
+            var velNorm = ship.heading
+            val mag = ship.velocity.mag() / Ship.MAXSPEED
+            //velNorm = if (mag > 1e-4) velNorm.normal() else
+               // Vector2D(1.0, Math.random() * Math.PI * 2).toCartesian()
+            dotContext(velNorm, dotshift, (1 - mag).pow(falloff) * weight * (1- hist), clipZero =
+            false)
+        }
+    }
+
+    /**
      * Makes the agent follow a orbit around the mouse. this does it by generating a target that
      * is offset by the orbit distance from the mouse and following that point. In order for the
      * agent to orbit properly once the distance is reached, the target point is calculated using
@@ -186,7 +235,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var offsetSeekMouse: ContextMap = object : ContextMap() {
-        val offsetDist = 200.0
+        val offsetDist = 300.0
         val weight = 2.0
         val dotShift = 0.0
         override fun populateContext() {
@@ -216,19 +265,18 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var faceMouse: ContextMap = object : ContextMap() {
-        val weight = 1.0
+        val weight = 5.0
         val maxWeight = 3.0
-        val falloff = 100.0
+        val falloff = 200.0
         override fun populateContext() {
             val target: Vector2D = Simulation.mouseCords
             var offset = target.add(ship.pos.mult(-1.0))
             val dist = offset.mag() + 1e-4
             offset = offset.normal()
+            offset = offset.mult(weight).add(ship.heading).normal()
+            dotContext(offset,0.0, dist / falloff)
             for (i in 0 until numbins) {
-                var mag: Double = bindir[i].dot(offset) * dist / falloff
-                mag = if (mag < 0) 0.0 else mag
-                mag = min(mag, maxWeight)
-                bins[i] += mag
+                bins[i] = min(bins[i], maxWeight)
             }
         }
     }
@@ -250,14 +298,14 @@ class AIAgent(ship: Ship) : Agent(ship) {
         override fun populateContext() {
             for (otherShip in Simulation.ships) {
                 if (otherShip === this@AIAgent.ship) continue
-                var offset = otherShip.pos.add(ship.pos.mult(-1.0))
+                val offset = otherShip.pos.add(ship.pos.mult(-1.0))
                 val dist = offset.mag() + 1e-4
-                offset = offset.normal()
-                for (i in 0 until numbins) {
-                    var mag: Double = (bindir[i].dot(offset) + dotShift) * falloff / dist
-                    mag = if (mag < 0) 0.0 else mag
-                    bins[i] += mag
-                }
+                val t = dist/(ship.velocity.mag()*2.0)
+                val lookAhead = otherShip.velocity.mult(t)
+                var targetOffset = offset.add(lookAhead)
+                val targetDist = targetOffset.mag() + 1e-4
+                targetOffset = targetOffset.normal()
+                dotContext(targetOffset,dotShift,falloff/targetDist)
             }
         }
     }
