@@ -64,6 +64,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
         faceMouse.populateContext()
 
         //momentum.clearContext()
+        squadFormation.populateContext()
         commitment.populateContext()
 
         borderDanger.clearContext()
@@ -74,6 +75,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
 
         movementInterest.addContext(wander)
         movementInterest.addContext(offsetSeekMouse)
+        movementInterest.addContext(squadFormation)
         movementInterest.addContext(commitment)
         movementInterest.clipZero() //safeguard against neg weights
 
@@ -266,7 +268,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      */
     var faceMouse: ContextMap = object : ContextMap() {
         val weight = 5.0
-        val maxWeight = 3.0
+        val maxWeight = 0.0
         val falloff = 200.0
         override fun populateContext() {
             val target: Vector2D = Simulation.mouseCords
@@ -279,6 +281,23 @@ class AIAgent(ship: Ship) : Agent(ship) {
                 bins[i] = min(bins[i], maxWeight)
             }
         }
+    }
+
+    var squadFormation: ContextMap = object : ContextMap(){
+        val weight = 2.0
+        val maxWeight = 5.0
+        val falloff = 100.0
+        val dotShift = 0.0
+        override fun populateContext() {
+            clearContext()
+            val target = this@AIAgent.ship.squad?.getFromationPos(this@AIAgent.ship)?: return
+            var targetOffset = target.add(ship.pos.mult(-1.0))
+            val dist = targetOffset.mag()
+            if (dist/falloff < 1e-2) return
+            targetOffset = targetOffset.normal()
+            dotContext(targetOffset, dotShift, min(dist/ falloff * weight, maxWeight))
+        }
+
     }
 
     /**
@@ -323,7 +342,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var borderDanger: ContextMap = object : ContextMap() {
-        var falloff = 50
+        var falloff = 100
         var dotShift = 0.2
         override fun populateContext() {
             for (i in 0 until numbins) {

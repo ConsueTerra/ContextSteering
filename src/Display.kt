@@ -33,6 +33,7 @@ class Display(w: Int, h: Int) : JPanel() {
         g.rotate(ship.heading.toPolar().y)
         g.scale(ship.size.toDouble(), ship.size.toDouble())
         g.color =  if (ship.agent is PlayerAgent) Color.green else Color.white
+        g.color = ship.team?.color
         g.fill(shape)
         g.color = Color.black
         g.stroke = BasicStroke(1/ship.size.toFloat())

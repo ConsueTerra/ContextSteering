@@ -18,6 +18,8 @@ class Ship (
     }
     var offset : Double = Math.random()
     lateinit var agent : Agent
+    var squad : Squad? = null
+    var team: Team? = null
 
 
     /**

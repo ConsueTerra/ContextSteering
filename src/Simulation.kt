@@ -28,21 +28,67 @@ class Simulation(numAIShips: Int) : ActionListener {
             ship.pos = ship.pos.add(ship.velocity).bound(w.toDouble(), h.toDouble())
             if (ship.pos.x == 0.0 && ship.pos.y == 0.0) ship.pos = ship.pos.add(1.0, 1.0)
         }
+        for (team in teams) {
+            team.squads.forEach {it.updateHeading()}
+        }
     }
 
     fun setup(numAIAgents: Int) {
+        val numteams = (Math.random()*3+2).toInt()
+        for (i in 0 until numteams){
+            teams.add(Team())
+        }
+        if (false) {
+            val playerShip = Ship(Vector2D(w/2.0, h/2.0))
+            playerShip.agent = PlayerAgent(playerShip)
+            ships.add(playerShip)
+            playerShip.team = teams[0]
+            teams[0].ships.add(playerShip)
+            display.frame.addKeyListener((playerShip.agent as PlayerAgent).control)
+        }
+
         for (i in 0 until numAIAgents) {
             val ship = Ship(w, h)
             ships.add(ship)
+            val team = teams[i%numteams]
+            ship.team = team
+            team.ships.add(ship)
         }
-        val playerShip = Ship(Vector2D(w/2.0, h/2.0))
-        playerShip.agent = PlayerAgent(playerShip)
-        ships.add(playerShip)
-        display.frame.addKeyListener((playerShip.agent as PlayerAgent).control)
+
+        for(team in teams) setupSquads(team)
+    }
+
+    fun setupSquads(team: Team) {
+        val maxsize = 5
+        var squadSize = (Math.random()*(maxsize-1)+1).toInt()
+        var j = 0
+        var squad = Squad(team = team)
+        team.squads.add(squad)
+        for (ship in team.ships) {
+            if (j == squadSize) {
+                squad = Squad(team = team)
+                team.squads.add(squad)
+                squadSize = (Math.random()*(maxsize-1)+1).toInt()
+                j = 0
+            }
+            squad.ships.add(ship)
+            ship.squad = squad
+            j =+ 1
+
+        }
+        val pullamount = 0.7
+        for (squads in team.squads) {
+            val centerOfMass = squad.ships.fold(Vector2D(0.0,0.0)) {
+                acc, ship -> acc.add(ship.pos)}.mult(1/squad.ships.size.toDouble())
+            squad.ships.forEach {
+                ship -> ship.pos = centerOfMass.mult(pullamount).add(ship.pos.mult(1- pullamount))}
+        }
+
     }
 
     companion object {
         var ships: MutableList<Ship> = ArrayList()
+        var teams: MutableList<Team> = ArrayList()
         var w = 1000
         var h = 1000
         var mouseCords = Vector2D(0.0,0.0)
