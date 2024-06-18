@@ -1,5 +1,6 @@
 import java.awt.BasicStroke
 import java.awt.Color
+import java.awt.FlowLayout
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.event.MouseEvent
@@ -11,6 +12,7 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.NoninvertibleTransformException
 import java.awt.geom.Path2D
 import java.awt.geom.Point2D
+import javax.swing.JButton
 import javax.swing.JFrame
 import javax.swing.JPanel
 import kotlin.math.pow
@@ -21,6 +23,9 @@ class Display() : JPanel() {
     var zoom = canvasWidth.toDouble() / Simulation.w.toDouble()
     var topLeft : Vector2D = Vector2D(-canvasWidth*zoom, -canvasHeight*zoom)
     var canvasTransform : AffineTransform = AffineTransform()
+    var showContext = true
+    var showTargets = true
+
     init {
         frame = JFrame("Agents")
         frame.setSize(canvasWidth, canvasHeight)
@@ -32,6 +37,18 @@ class Display() : JPanel() {
         addMouseListener(panningHandler)
         addMouseMotionListener(panningHandler)
         addMouseWheelListener(panningHandler)
+
+        val options = JFrame("Options")
+        val toggleContext = JButton("toggle Contexts")
+        val toggleTargets = JButton("toggle targets")
+        options.layout = FlowLayout()
+        options.add(toggleContext)
+        options.add(toggleTargets)
+        options.pack()
+        options.isVisible = true
+
+        toggleContext.addActionListener { e ->  toggleContext()}
+        toggleTargets.addActionListener { e ->  toggleTarget()}
     }
 
     override fun paint(g: Graphics) {
@@ -72,7 +89,7 @@ class Display() : JPanel() {
 
         //draw context map and other vectors
         g.translate(ship.pos.x, ship.pos.y)
-        if (true && ship.agent is AIAgent) {
+        if (showContext && ship.agent is AIAgent) {
             val agent = ship.agent as AIAgent
             for (i in 0 until ContextMap.numbins) {
                 val dir: Vector2D = ContextMap.bindir[i]
@@ -105,7 +122,7 @@ class Display() : JPanel() {
         )
         g.transform = save
 
-        if (ship.agent is AIAgent) {
+        if (showTargets && ship.agent is AIAgent) {
             val target = (ship.agent as AIAgent).squadTarget
             if (target != null) {
                 g.drawRect(target.x.toInt()-5,target.y.toInt()-5, 10,10 )
@@ -198,6 +215,14 @@ class Display() : JPanel() {
         override fun mouseMoved(e: MouseEvent?) {}
         override fun mouseReleased(e: MouseEvent?) {}
 
+    }
+
+    fun toggleContext() {
+        showContext = !showContext
+    }
+
+    fun toggleTarget() {
+        showTargets = !showTargets
     }
 
 }
