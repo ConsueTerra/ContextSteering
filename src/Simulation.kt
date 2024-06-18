@@ -6,7 +6,7 @@ class Simulation(numAIShips: Int) : ActionListener {
     var display: Display
 
     init {
-        display = Display(w, h)
+        display = Display()
         setup(numAIShips)
         val timer = Timer(16, this)
         timer.restart()
@@ -89,8 +89,8 @@ class Simulation(numAIShips: Int) : ActionListener {
     companion object {
         var ships: MutableList<Ship> = ArrayList()
         var teams: MutableList<Team> = ArrayList()
-        var w = 1000
-        var h = 1000
+        var w = 2000
+        var h = 2000
         var mouseCords = Vector2D(0.0,0.0)
     }
 }
