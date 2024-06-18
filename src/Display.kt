@@ -104,6 +104,13 @@ class Display() : JPanel() {
             (ship.thrust.y * ship.size).toInt()
         )
         g.transform = save
+
+        if (ship.agent is AIAgent) {
+            val target = (ship.agent as AIAgent).squadTarget
+            if (target != null) {
+                g.drawRect(target.x.toInt()-5,target.y.toInt()-5, 10,10 )
+            }
+        }
     }
 
     val mouseCords: Vector2D

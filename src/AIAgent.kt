@@ -42,6 +42,8 @@ import kotlin.math.pow
  */
 class AIAgent(ship: Ship) : Agent(ship) {
 
+    var squadTarget : Vector2D? = null
+
     /**
      * Master steering function
      *
@@ -100,9 +102,9 @@ class AIAgent(ship: Ship) : Agent(ship) {
         // magnitude then it will lead to an agent jittering under a certain ship.velocity threshold.
         //mixing
         var rotationMovementPrior =
-            max(min(ship.velocity.mag() / Ship.MAXSPEED, 1.0), 0.0).pow(2.0)//TODO fix this
+            max(min(ship.velocity.mag() / Ship.MAXSPEED*2, 1.0), 0.0).pow(1.0)//TODO fix this
         //println(rotationMovementPrior)
-        //rotationMovementPrior = 0.0;
+        //\rotationMovementPrior = 0.0;
         val temp: ContextMap = object : ContextMap(movementInterest) {}
         val movementWeight = (1 - rotationMovementPrior).pow(0.5)
         movementInterest.multScalar(movementWeight)
@@ -237,8 +239,8 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var offsetSeekMouse: ContextMap = object : ContextMap() {
-        val offsetDist = 300.0
-        val weight = 2.0
+        val offsetDist = 500.0
+        val weight = 1.0
         val dotShift = 0.0
         override fun populateContext() {
             val center: Vector2D = Simulation.mouseCords
@@ -267,9 +269,9 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var faceMouse: ContextMap = object : ContextMap() {
-        val weight = 5.0
-        val maxWeight = 0.0
-        val falloff = 200.0
+        val weight = 10.0
+        val maxWeight = 2.0
+        val falloff = 800.0
         override fun populateContext() {
             val target: Vector2D = Simulation.mouseCords
             var offset = target.add(ship.pos.mult(-1.0))
@@ -294,6 +296,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
             var targetOffset = target.add(ship.pos.mult(-1.0))
             val dist = targetOffset.mag()
             if (dist/falloff < 1e-2) return
+            squadTarget = target
             targetOffset = targetOffset.normal()
             dotContext(targetOffset, dotShift, min(dist/ falloff * weight, maxWeight))
         }
