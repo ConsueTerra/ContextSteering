@@ -20,6 +20,9 @@ class Ship (
     lateinit var agent : Agent
     var squad : Squad? = null
     var team: Team? = null
+    var health = 100;
+    val shields: MutableList<Shield> = ArrayList()
+    val weapons: MutableList<Weapon> = ArrayList()
 
 
     /**
