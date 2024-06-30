@@ -1,6 +1,7 @@
 import kotlin.math.max
 
-class Ship (
+private const val DEFAULTMASS = 10.0
+abstract class Ship (
     var pos: Vector2D,
     var velocity: Vector2D = Vector2D(0.0, 0.0),
     /**
@@ -8,15 +9,14 @@ class Ship (
      */
     var heading: Vector2D = Vector2D(1.0, 0.0),
     var thrust: Vector2D=  Vector2D(0.0, 0.0),
-    var mass: Double = DEFAULTMASS,
-    var size : Int= 10,
+    val mass : Double = DEFAULTMASS,
+    val size : Int= 10,
+
 ) {
-    companion object {
-        const val MAXSPEED = 10.0
-        const val DEFAULTMASS = 10.0
-        const val THRUSTPOWER = 10.0
-    }
-    var offset : Double = Math.random()
+    val MAXSPEED = 10.0
+    val THRUSTPOWER = 10.0
+
+    val offset : Double = Math.random()
     lateinit var agent : Agent
     var squad : Squad? = null
     var team: Team? = null
@@ -25,11 +25,7 @@ class Ship (
     val weapons: MutableList<Weapon> = ArrayList()
 
 
-    /**
-     * Creates a default agent randomly on the simulation space with a random velocity
-     * @param w the width of the simulation space
-     * @param h the height of the simulation space
-     */
+
     constructor(w: Int, h: Int) :
             this(Vector2D(0.0, 0.0)) {
         pos = Vector2D((Math.random() * w), (Math.random() * h))
@@ -40,10 +36,10 @@ class Ship (
         velocity = velocity.clip(MAXSPEED)
         heading =
             Vector2D((Math.random() - 0.5), (Math.random() - 0.5)).normal()
-        mass = DEFAULTMASS
         thrust = Vector2D(0.0, 0.0)
         agent = AIAgent(this)
     }
+
 
     fun handleMovement() {
         val output  = agent.steer()
@@ -53,5 +49,25 @@ class Ship (
         val dotProd = max(thrust.dot(heading), 0.0)
         thrust = thrust.mult(dotProd).mult(THRUSTPOWER)
     }
-
+}
+/**
+ * Creates a default ship randomly on the simulation space with a random velocity
+ * @param w the width of the simulation space
+ * @param h the height of the simulation space
+ */
+fun createShip(w: Int, h: Int,
+               shipFactory : () -> Ship = ShipTypes.drawRandomShip(),
+               agentFactory: (ship: Ship) -> Agent = {ship -> AIAgent(ship)}) : Ship {
+    val ship = shipFactory()
+    ship.pos = Vector2D((Math.random() * w), (Math.random() * h))
+    ship.velocity = Vector2D(
+        (Math.random() * ship.MAXSPEED)- ship.MAXSPEED / 2,
+        (Math.random() * ship.MAXSPEED) - ship.MAXSPEED / 2
+    )
+    ship.velocity = ship.velocity.clip(ship.MAXSPEED)
+    ship.heading =
+        Vector2D((Math.random() - 0.5), (Math.random() - 0.5)).normal()
+    ship.thrust = Vector2D(0.0, 0.0)
+    ship.agent = agentFactory(ship)
+    return  ship
 }

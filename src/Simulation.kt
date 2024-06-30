@@ -24,7 +24,7 @@ class Simulation(numAIShips: Int) : ActionListener {
             var accel = ship.thrust
             accel = accel.mult(1 / ship.mass)
             ship.velocity = ship.velocity.mult(0.95)//dragging force
-            ship.velocity = ship.velocity.add(accel).clip(Ship.MAXSPEED)//#TODO fix this
+            ship.velocity = ship.velocity.add(accel).clip(ship.MAXSPEED)
             ship.pos = ship.pos.add(ship.velocity).bound(w.toDouble(), h.toDouble())
             if (ship.pos.x == 0.0 && ship.pos.y == 0.0) ship.pos = ship.pos.add(1.0, 1.0)
         }
@@ -34,12 +34,13 @@ class Simulation(numAIShips: Int) : ActionListener {
     }
 
     fun setup(numAIAgents: Int) {
-        val numteams = (Math.random()*3+2).toInt()
+        val numteams = (Math.random()*2+2).toInt()
         for (i in 0 until numteams){
             teams.add(Team())
         }
         if (false) {
-            val playerShip = Ship(Vector2D(w/2.0, h/2.0))
+            val playerShip = ShipTypes.drawRandomShip()()
+            playerShip.pos = Vector2D(w/2.0, h/2.0)
             playerShip.agent = PlayerAgent(playerShip)
             ships.add(playerShip)
             playerShip.team = teams[0]
@@ -48,7 +49,7 @@ class Simulation(numAIShips: Int) : ActionListener {
         }
 
         for (i in 0 until numAIAgents) {
-            val ship = Ship(w, h)
+            val ship = createShip(w,h)
             ships.add(ship)
             val team = teams[i%numteams]
             ship.team = team
@@ -78,6 +79,7 @@ class Simulation(numAIShips: Int) : ActionListener {
         }
         val pullamount = 0.7
         for (squads in team.squads) {
+            squad.ships.sortBy { -it.mass }
             val centerOfMass = squad.ships.fold(Vector2D(0.0,0.0)) {
                 acc, ship -> acc.add(ship.pos)}.mult(1/squad.ships.size.toDouble())
             squad.ships.forEach {

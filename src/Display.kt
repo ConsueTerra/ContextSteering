@@ -25,6 +25,7 @@ class Display() : JPanel() {
     var canvasTransform : AffineTransform = AffineTransform()
     var showContext = true
     var showTargets = true
+    val linel= 10
 
     init {
         frame = JFrame("Agents")
@@ -99,8 +100,8 @@ class Display() : JPanel() {
                 g.drawLine(
                     0,
                     0,
-                    (dir.x * mag * ship.size * ship.size).toInt(),
-                    (dir.y * mag * ship.size * ship.size).toInt()
+                    (dir.x * mag * linel * linel).toInt(),
+                    (dir.y * mag * linel * linel).toInt()
                 )
                 mag = agent.rotationInterest.bins[i]
                 mag = if (mag < 0) 0.0 else mag
@@ -108,8 +109,8 @@ class Display() : JPanel() {
                 g.drawLine(
                     0,
                     0,
-                    (dir.x * mag * ship.size * ship.size).toInt(),
-                    (dir.y * mag * ship.size * ship.size).toInt()
+                    (dir.x * mag * linel * linel).toInt(),
+                    (dir.y * mag * linel * linel).toInt()
                 )
             }
         }
@@ -117,8 +118,8 @@ class Display() : JPanel() {
         g.drawLine(
             0,
             0,
-            (ship.thrust.x * ship.size).toInt(),
-            (ship.thrust.y * ship.size).toInt()
+            (ship.thrust.x * linel).toInt(),
+            (ship.thrust.y * linel).toInt()
         )
         g.transform = save
 

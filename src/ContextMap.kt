@@ -172,7 +172,6 @@ abstract class ContextMap {
         }
         //if no decision was made then default to random direction
         if (output.mag() < 1e-5) output = Vector2D(1.0, Math.random() * Math.PI * 2).toCartesian()
-        output = output.normal()
         return output
     }
 

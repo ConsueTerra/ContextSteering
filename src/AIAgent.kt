@@ -102,7 +102,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
         // magnitude then it will lead to an agent jittering under a certain ship.velocity threshold.
         //mixing
         var rotationMovementPrior =
-            max(min(ship.velocity.mag() / Ship.MAXSPEED*2, 1.0), 0.0).pow(1.0)//TODO fix this
+            max(min(ship.velocity.mag() / ship.MAXSPEED*2, 1.0), 0.0).pow(1.0)
         //println(rotationMovementPrior)
         //\rotationMovementPrior = 0.0;
         val temp: ContextMap = object : ContextMap(movementInterest) {}
@@ -127,7 +127,8 @@ class AIAgent(ship: Ship) : Agent(ship) {
 
         //decision time
         val heading = ship.heading.mult(2.0).add(rotationInterest.interpolatedMaxDir()).normal()
-        val thrust = movementInterest.interpolatedMaxDir()
+        var thrust = movementInterest.interpolatedMaxDir()
+        if (thrust.mag() > 1.0) thrust = thrust.normal()
         return SteeringOutput(heading, thrust)
     }
 
@@ -215,7 +216,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
         override fun populateContext() {
             multScalar(hist)
             var velNorm = ship.heading
-            val mag = ship.velocity.mag() / Ship.MAXSPEED
+            val mag = ship.velocity.mag() / ship.MAXSPEED
             //velNorm = if (mag > 1e-4) velNorm.normal() else
                // Vector2D(1.0, Math.random() * Math.PI * 2).toCartesian()
             dotContext(velNorm, dotshift, (1 - mag).pow(falloff) * weight * (1- hist), clipZero =
@@ -239,7 +240,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var offsetSeekMouse: ContextMap = object : ContextMap() {
-        val offsetDist = 500.0
+        val offsetDist = 800.0
         val weight = 1.0
         val dotShift = 0.0
         override fun populateContext() {
@@ -270,7 +271,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      */
     var faceMouse: ContextMap = object : ContextMap() {
         val weight = 10.0
-        val maxWeight = 2.0
+        val maxWeight = 0.0
         val falloff = 800.0
         override fun populateContext() {
             val target: Vector2D = Simulation.mouseCords
