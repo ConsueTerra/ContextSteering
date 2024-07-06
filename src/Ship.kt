@@ -13,7 +13,7 @@ abstract class Ship (
     val size : Int= 10,
 
 ) {
-    val MAXSPEED = 10.0
+    open val MAXSPEED = 10.0
     val THRUSTPOWER = 10.0
 
     val offset : Double = Math.random()

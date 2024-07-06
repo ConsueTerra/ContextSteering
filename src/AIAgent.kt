@@ -16,7 +16,6 @@ The strategy for implementing context steering is as follows:
 3. Make a decision based on the final interest and danger context maps, importantly decision-making
 should be the LAST step.
  */
-import java.lang.Math.pow
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -43,6 +42,8 @@ import kotlin.math.pow
 class AIAgent(ship: Ship) : Agent(ship) {
 
     var squadTarget : Vector2D? = null
+    var orbitTarget : Vector2D? = null
+    var dangerTarget : Vector2D? = null
 
     /**
      * Master steering function
@@ -127,8 +128,8 @@ class AIAgent(ship: Ship) : Agent(ship) {
 
         //decision time
         val heading = ship.heading.mult(2.0).add(rotationInterest.interpolatedMaxDir()).normal()
-        var thrust = movementInterest.interpolatedMaxDir()
-        if (thrust.mag() > 1.0) thrust = thrust.normal()
+        val thrustmag = movementInterest.lincontext!!.interpolotedMax()
+        val thrust = movementInterest.interpolatedMaxDir().normal().mult(thrustmag)
         return SteeringOutput(heading, thrust)
     }
 
@@ -138,7 +139,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      * This map is the final context to which to determine an agents thrust/movement
      */
-    var movementInterest: ContextMap = object : ContextMap() {}
+    var movementInterest: ContextMap = object : ContextMap(linearbins = true) {}
 
     /**
      * Interest maps correspond to how much a ship wants to move in a particular direction
@@ -169,18 +170,19 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *  * **`jitterRate`** controls how frequently the wandering angle oscillates
      *
      */
-    var wander: ContextMap = object : ContextMap() {
+    var wander: ContextMap = object : ContextMap(linearbins = true) {
         val weight = 0.5
         val dotShift = 1.0
         val jitterRate = 2e4
         override fun populateContext() {
             val timeoffset = ship.offset * jitterRate
             val theta = SimplexNoise.noise(
-                System.currentTimeMillis() % 100000 / jitterRate + timeoffset,
-                System.currentTimeMillis() % 100000 / jitterRate + timeoffset
+                System.currentTimeMillis() % 1000000 / jitterRate / (ship.size / 10.0) + timeoffset,
+                System.currentTimeMillis() % 1000000 / jitterRate /(ship.size / 10.0)+ timeoffset
             ) * 2 * Math.PI
             val desiredDir = Vector2D(1.0, theta).toCartesian()
             dotContext(desiredDir, dotShift, weight)
+            lincontext!!.apply(lincontext!!.populatePeak(1.0, weight))
         }
     }
 
@@ -198,8 +200,8 @@ class AIAgent(ship: Ship) : Agent(ship) {
             headingHist.multScalar(hist)
             val velNorm = ship.heading
             headingHist.dotContext(velNorm,1.0,(1-hist))
-            dotContext(velNorm,-1.0,weight,false)
-            for (i in 0 until numbins) {
+            dotContext(velNorm,-1.0,weight, clipZero = false)
+            for (i in 0 until NUMBINS) {
                 bins[i] *= headingHist.bins[i]
             }
         }
@@ -240,7 +242,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var offsetSeekMouse: ContextMap = object : ContextMap() {
-        val offsetDist = 800.0
+        val offsetDist = 1400.0
         val weight = 1.0
         val dotShift = 0.0
         override fun populateContext() {
@@ -251,6 +253,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
             val frowardTether = ship.pos.add(ship.velocity.normal().mult(tetherl))
             val tetherOffset = frowardTether.add(center.mult(-1.0)).normal()
             val target = center.add(tetherOffset.mult(offsetDist))
+            orbitTarget = target
             var targetOffset = target.add(ship.pos.mult(-1.0))
             dist = targetOffset.mag()
             targetOffset = targetOffset.normal()
@@ -272,7 +275,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
     var faceMouse: ContextMap = object : ContextMap() {
         val weight = 10.0
         val maxWeight = 0.0
-        val falloff = 800.0
+        val falloff = 1500.0
         override fun populateContext() {
             val target: Vector2D = Simulation.mouseCords
             var offset = target.add(ship.pos.mult(-1.0))
@@ -280,26 +283,31 @@ class AIAgent(ship: Ship) : Agent(ship) {
             offset = offset.normal()
             offset = offset.mult(weight).add(ship.heading).normal()
             dotContext(offset,0.0, dist / falloff)
-            for (i in 0 until numbins) {
+            for (i in 0 until NUMBINS) {
                 bins[i] = min(bins[i], maxWeight)
             }
         }
     }
 
-    var squadFormation: ContextMap = object : ContextMap(){
+    var squadFormation: ContextMap = object : ContextMap(linearbins = true){
         val weight = 2.0
         val maxWeight = 5.0
         val falloff = 100.0
         val dotShift = 0.0
+        val throttleFalloff = 100.0
         override fun populateContext() {
             clearContext()
-            val target = this@AIAgent.ship.squad?.getFromationPos(this@AIAgent.ship)?: return
+            var target = this@AIAgent.ship.squad?.getFromationPos(this@AIAgent.ship)?: return
+            val squadlead = ship.squad?.ships?.get(0) ?: return
+            target = target.add(lookAhead(squadlead, pos = target, futuremod = 2.0))
             var targetOffset = target.add(ship.pos.mult(-1.0))
             val dist = targetOffset.mag()
             if (dist/falloff < 1e-2) return
             squadTarget = target
             targetOffset = targetOffset.normal()
             dotContext(targetOffset, dotShift, min(dist/ falloff * weight, maxWeight))
+            val throttleWeight = min(throttleFalloff*weight / dist, maxWeight)
+            lincontext!!.apply(lincontext!!.populatePeak(dist/throttleFalloff, throttleWeight))
         }
 
     }
@@ -317,18 +325,24 @@ class AIAgent(ship: Ship) : Agent(ship) {
      */
     var shipDanger: ContextMap = object : ContextMap() {
         val falloff = 50.0
-        var dotShift = 0.1
+        val dotShift = 0.2
+        val shipWeightSize = 10.0
+        val shipWeightSpeed = 20.0
+
         override fun populateContext() {
+            var mindist = 1e10
             for (otherShip in Simulation.ships) {
-                if (otherShip === this@AIAgent.ship) continue
-                val offset = otherShip.pos.add(ship.pos.mult(-1.0))
-                val dist = offset.mag() + 1e-4
-                val t = dist/(ship.velocity.mag()*2.0)
-                val lookAhead = otherShip.velocity.mult(t)
-                var targetOffset = offset.add(lookAhead)
+                if (otherShip == this@AIAgent.ship) continue
+                val target = otherShip.pos.add(lookAhead(otherShip, futuremod = 1.0, useMax = true))
+                var targetOffset = ship.pos.add(target.mult(-1.0))
                 val targetDist = targetOffset.mag() + 1e-4
+                if (targetDist < mindist) {
+                    mindist = targetDist
+                    dangerTarget = target
+                }
                 targetOffset = targetOffset.normal()
-                dotContext(targetOffset,dotShift,falloff/targetDist)
+                val dangerWeight = (otherShip.size / shipWeightSize) * (ship.MAXSPEED /shipWeightSpeed)
+                dotContext(targetOffset,dotShift,-1*(falloff*dangerWeight)/targetDist, power = 1.0, true)
             }
         }
     }
@@ -349,19 +363,19 @@ class AIAgent(ship: Ship) : Agent(ship) {
         var falloff = 100
         var dotShift = 0.2
         override fun populateContext() {
-            for (i in 0 until numbins) {
+            for (i in 0 until NUMBINS) {
                 //north border
                 var dir = Vector2D(0.0, -1.0)
                 bins[i] += calcDanger(bindir[i], dir, ship.pos.y, 0.0)
                 //south border
                 dir = Vector2D(0.0, 1.0)
-                bins[i] += calcDanger(bindir[i],dir,ship.pos.y, Simulation.h.toDouble())
+                bins[i] += calcDanger(bindir[i],dir,ship.pos.y, Simulation.H.toDouble())
                 //west border
                 dir = Vector2D(-1.0, 0.0)
                 bins[i] += calcDanger(bindir[i], dir, ship.pos.x, 0.0)
                 //east border
                 dir = Vector2D(1.0, 0.0)
-                bins[i] += calcDanger(bindir[i],dir,ship.pos.x, Simulation.w.toDouble())
+                bins[i] += calcDanger(bindir[i],dir,ship.pos.x, Simulation.W.toDouble())
             }
         }
 
@@ -372,4 +386,16 @@ class AIAgent(ship: Ship) : Agent(ship) {
             return mag
         }
     }
+
+    private fun lookAhead(other: Ship,
+                          pos : Vector2D = other.pos,
+                          futuremod : Double = 1.0, useMax : Boolean = false) : Vector2D {
+        val offset = pos.add(ship.pos.mult(-1.0))
+        val dist = offset.mag() + 1e-4
+        val vel = if (useMax) {ship.MAXSPEED} else {ship.velocity.mag()}
+        val t = dist/(vel*futuremod)
+        val lookAhead =  other.velocity.mult(t)
+        return lookAhead
+    }
+
 }

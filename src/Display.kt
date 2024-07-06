@@ -20,7 +20,7 @@ import kotlin.math.pow
 
 class Display() : JPanel() {
     val frame : JFrame
-    var zoom = canvasWidth.toDouble() / Simulation.w.toDouble()
+    var zoom = canvasWidth.toDouble() / Simulation.W.toDouble()
     var topLeft : Vector2D = Vector2D(-canvasWidth*zoom, -canvasHeight*zoom)
     var canvasTransform : AffineTransform = AffineTransform()
     var showContext = true
@@ -59,7 +59,8 @@ class Display() : JPanel() {
         for (ship in Simulation.ships) {
             drawShip(ship, g)
         }
-        g.drawRect(0,0,Simulation.w,Simulation.h)
+        g.color = Color.blue
+        g.drawRect(0,0,Simulation.W,Simulation.H)
         g.transform(globalTransform)
     }
 
@@ -92,7 +93,7 @@ class Display() : JPanel() {
         g.translate(ship.pos.x, ship.pos.y)
         if (showContext && ship.agent is AIAgent) {
             val agent = ship.agent as AIAgent
-            for (i in 0 until ContextMap.numbins) {
+            for (i in 0 until ContextMap.NUMBINS) {
                 val dir: Vector2D = ContextMap.bindir[i]
                 var mag = agent.movementInterest.bins[i]
                 mag = if (mag < 0) 0.0 else mag
@@ -124,8 +125,18 @@ class Display() : JPanel() {
         g.transform = save
 
         if (showTargets && ship.agent is AIAgent) {
-            val target = (ship.agent as AIAgent).squadTarget
+            var target = (ship.agent as AIAgent).squadTarget
             if (target != null) {
+                g.drawRect(target.x.toInt()-5,target.y.toInt()-5, 10,10 )
+            }
+            g.color = Color(161,78,37)
+            target = (ship.agent as AIAgent).orbitTarget
+            if (target != null && (ship.squad?.ships?.indexOf(ship) == 0)) {
+                g.drawRect(target.x.toInt()-5,target.y.toInt()-5, 10,10 )
+            }
+            g.color = Color.RED
+            target = (ship.agent as AIAgent).dangerTarget
+            if (target != null && false) {
                 g.drawRect(target.x.toInt()-5,target.y.toInt()-5, 10,10 )
             }
         }
@@ -136,9 +147,9 @@ class Display() : JPanel() {
          * The current mouse cords, if the mouse its outside the bounds then the center of the canvas
          */
         get() {
-            var point : Point2D = this.mousePosition ?:  Point2D.Double((width/2).toDouble(),
-                (height/2).toDouble())
-            point = canvasTransform.inverseTransform(point, null)
+            var point : Point2D = this.mousePosition ?:  Point2D.Double((Simulation.W/2).toDouble(),
+                (Simulation.H/2).toDouble())
+            if (this.mousePosition!= null)  point = canvasTransform.inverseTransform(point, null)
             return Vector2D(point.x, point.y)
         }
 

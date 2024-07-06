@@ -23,9 +23,9 @@ class Simulation(numAIShips: Int) : ActionListener {
             ship.handleMovement()
             var accel = ship.thrust
             accel = accel.mult(1 / ship.mass)
-            ship.velocity = ship.velocity.mult(0.95)//dragging force
+            ship.velocity = ship.velocity.mult(DRAGFORCE)//dragging force
             ship.velocity = ship.velocity.add(accel).clip(ship.MAXSPEED)
-            ship.pos = ship.pos.add(ship.velocity).bound(w.toDouble(), h.toDouble())
+            ship.pos = ship.pos.add(ship.velocity).bound(W.toDouble(), H.toDouble())
             if (ship.pos.x == 0.0 && ship.pos.y == 0.0) ship.pos = ship.pos.add(1.0, 1.0)
         }
         for (team in teams) {
@@ -39,8 +39,8 @@ class Simulation(numAIShips: Int) : ActionListener {
             teams.add(Team())
         }
         if (false) {
-            val playerShip = ShipTypes.drawRandomShip()()
-            playerShip.pos = Vector2D(w/2.0, h/2.0)
+            val playerShip = object : Ship(Vector2D(0.0, 0.0),mass = 65.0, size = 65){}
+            playerShip.pos = Vector2D(W/2.0, H/2.0)
             playerShip.agent = PlayerAgent(playerShip)
             ships.add(playerShip)
             playerShip.team = teams[0]
@@ -49,7 +49,7 @@ class Simulation(numAIShips: Int) : ActionListener {
         }
 
         for (i in 0 until numAIAgents) {
-            val ship = createShip(w,h)
+            val ship = createShip(W,H)
             ships.add(ship)
             val team = teams[i%numteams]
             ship.team = team
@@ -60,8 +60,9 @@ class Simulation(numAIShips: Int) : ActionListener {
     }
 
     fun setupSquads(team: Team) {
-        val maxsize = 5
-        var squadSize = (Math.random()*(maxsize-1)+1).toInt()
+        val maxsize = 4
+        val minSize = 3
+        var squadSize = (Math.random()*(maxsize-minSize)+minSize).toInt()
         var j = 0
         var squad = Squad(team = team)
         team.squads.add(squad)
@@ -74,7 +75,7 @@ class Simulation(numAIShips: Int) : ActionListener {
             }
             squad.ships.add(ship)
             ship.squad = squad
-            j =+ 1
+            j++
 
         }
         val pullamount = 0.7
@@ -91,8 +92,9 @@ class Simulation(numAIShips: Int) : ActionListener {
     companion object {
         var ships: MutableList<Ship> = ArrayList()
         var teams: MutableList<Team> = ArrayList()
-        var w = 2000
-        var h = 2000
+        const val W = 4000
+        const val H = 4000
         var mouseCords = Vector2D(0.0,0.0)
+        const val DRAGFORCE = 0.95
     }
 }

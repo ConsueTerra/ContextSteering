@@ -1,5 +1,9 @@
 import java.util.Arrays
+import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 
 /**
  * A context map stores a set of direction and how good or bad to move in those directions,
@@ -14,10 +18,11 @@ import kotlin.math.exp
 abstract class ContextMap {
 
     companion object {
-        var numbins = 16
-        val bindir = Array(numbins) {
+        const val NUMBINS = 16
+        const val NUMLINBINS = 8
+        val bindir = Array(NUMBINS) {
                 i ->
-            val theta = (2.0 * Math.PI / numbins * i)
+            val theta = (2.0 * Math.PI / NUMBINS * i)
             Vector2D(1.0, theta).toCartesian()
         }
 
@@ -28,16 +33,23 @@ abstract class ContextMap {
         }
     }
 
-    var bins = DoubleArray(numbins)
+    val bins = DoubleArray(NUMBINS)
+    var lincontext : LinearContext? = null
 
 
-    constructor() {
+    constructor(linearbins : Boolean = false) {
         Arrays.fill(bins, 0.0)
+        if (linearbins) {
+            lincontext = LinearContext()
+        }
     }
 
-    constructor(other: ContextMap) {
-        for (i in 0 until numbins) {
+    constructor(other: ContextMap, linearbins : Boolean = false) {
+        for (i in 0 until NUMBINS) {
             bins[i] = other.bins[i]
+        }
+        if (linearbins && other.lincontext !=null) {
+            lincontext = LinearContext(other.lincontext!!)
         }
     }
 
@@ -48,6 +60,7 @@ abstract class ContextMap {
      */
     fun clearContext() {
         Arrays.fill(bins, 0.0)
+        lincontext?.clearContext()
     }
 
     /**
@@ -61,34 +74,36 @@ abstract class ContextMap {
      * @param direction to check against
      * @param shift shift the dot product from [-1,1] with + value
      * @param scale scales the dot product after shifting, ie to provide more magnitude to the bins.
+     * @param power exponent to ally after shifting and before scaling
      */
-    fun dotContext(direction: Vector2D, shift: Double, scale: Double, clipZero: Boolean = true) {
-        for (i in 0 until numbins) {
-            bins[i] += (bindir[i].dot(direction) + shift) * scale
+    fun dotContext(direction: Vector2D, shift: Double, scale: Double,power: Double = 1.0, clipZero: Boolean = true) {
+        for (i in 0 until NUMBINS) {
+            bins[i] += (bindir[i].dot(direction) + shift).pow(power) * scale
         }
         if (clipZero) clipZero()
     }
 
     fun addContext(other: ContextMap) {
-        for (i in 0 until numbins) {
+        for (i in 0 until NUMBINS) {
             bins[i] += other.bins[i]
         }
+        other.lincontext?.let { lincontext?.addContext(it)}
     }
 
     fun addScalar(`val`: Double) {
-        for (i in 0 until numbins) {
+        for (i in 0 until NUMBINS) {
             bins[i] += `val`
         }
     }
 
     fun multScalar(`val`: Double) {
-        for (i in 0 until numbins) {
+        for (i in 0 until NUMBINS) {
             bins[i] *= `val`
         }
     }
 
     fun clipZero() {
-        for (i in 0 until numbins) {
+        for (i in 0 until NUMBINS) {
             if (bins[i] < 0.0) bins[i] = 0.0
         }
     }
@@ -100,7 +115,7 @@ abstract class ContextMap {
      * @param threshold
      */
     fun maskContext(other: ContextMap, threshold: Double) {
-        for (i in 0 until numbins) {
+        for (i in 0 until NUMBINS) {
             if (other.bins[i] >= threshold) {
                 bins[i] = -1000.0
             }
@@ -108,9 +123,9 @@ abstract class ContextMap {
     }
 
     fun softMaskContext(other: ContextMap, threshold: Double) {
-        for (i in 0 until numbins) {
+        for (i in 0 until NUMBINS) {
             val sigmoid : Double
-            val x = (threshold - other.bins[i])*30.0
+            val x = (threshold - other.bins[i])*10.0
             sigmoid = if (x < 0) {
                 exp(x) / (1.0 + exp(x))
             } else {
@@ -133,12 +148,12 @@ abstract class ContextMap {
         while (i != 1) {
             val `val` = bins[i]
             if (`val` > maxVal) {
-                indices[0] = (i - 1 + numbins) % numbins
+                indices[0] = (i - 1 + NUMBINS) % NUMBINS
                 indices[1] = i
-                indices[2] = (i + 1) % numbins
+                indices[2] = (i + 1) % NUMBINS
                 maxVal = `val`
             }
-            i = (i + 1) % numbins
+            i = (i + 1) % NUMBINS
         }
         return indices
     }
@@ -175,4 +190,71 @@ abstract class ContextMap {
         return output
     }
 
+    inner class LinearContext {
+        val bins = DoubleArray(NUMLINBINS)
+        val binloc = Array(NUMLINBINS) { i ->
+            val spacing = 1.0 /(NUMLINBINS - 3).toDouble()
+            (i - 1) * spacing
+        }
+        constructor() {
+            bins.fill(0.0)
+        }
+
+        constructor(other: LinearContext) {
+            for (i in 0 until NUMLINBINS) {
+                bins[i] = other.bins[i]
+            }
+        }
+
+        /**
+         * Sets all bins to 0.0
+         */
+        fun clearContext() {
+            Arrays.fill(bins, 0.0)
+        }
+
+        fun addContext(other: LinearContext) {
+            for (i in 0 until NUMLINBINS) {
+                bins[i] += other.bins[i]
+            }
+        }
+
+        inline fun apply(func : (i : Int) -> Double, clear : Boolean = true) {
+            if (clear) clearContext()
+            for (i in 0 until NUMLINBINS) {
+                bins[i] += func(i)
+            }
+        }
+
+        fun populatePeak(scalar : Double, weight : Double, edgepoints: Boolean = true, spread : Double = 0.25, power : Double = 2.0): (Int) -> Double {
+            var scaled = max(0.0, min(scalar, 1.0))
+            if (edgepoints) {
+                val range = binloc.last() - binloc.first()
+                scaled = scaled * range + binloc.first()
+            }
+            val lamb  = {i : Int ->
+                val loc = binloc[i]
+                val dist = abs(scaled - loc)
+                max(0.0, 1.0 - dist/spread).pow(power)*weight
+            }
+            return lamb
+        }
+
+        fun interpolotedMax(): Double {
+            val i = bins.withIndex().maxBy { it.value }.index
+            var j = i-1
+            var maxval = 0.0
+            for (k in i-1 until i+2){
+                if (k == i || k < 0 || k == NUMLINBINS) {
+                    continue
+                }
+                if (bins[k] > maxval) {
+                    maxval = bins[k]
+                    j = k
+                }
+            }
+            val interpolated = (bins[i]*binloc[i] + bins[j]*binloc[j])/(bins[i]+bins[j])
+            return max(0.0, min(interpolated, 1.0))
+        }
+    }
 }
