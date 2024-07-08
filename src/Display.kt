@@ -12,6 +12,7 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.NoninvertibleTransformException
 import java.awt.geom.Path2D
 import java.awt.geom.Point2D
+import java.awt.geom.Rectangle2D
 import javax.swing.JButton
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -21,10 +22,11 @@ import kotlin.math.pow
 class Display() : JPanel() {
     val frame : JFrame
     var zoom = canvasWidth.toDouble() / Simulation.W.toDouble()
-    var topLeft : Vector2D = Vector2D(-canvasWidth*zoom, -canvasHeight*zoom)
+    var topLeft : Vector2D = Vector2D((canvasWidth-Simulation.W)*zoom, (canvasHeight-Simulation.H)*zoom)
     var canvasTransform : AffineTransform = AffineTransform()
     var showContext = true
     var showTargets = true
+    var showShields = false
     val linel= 10
 
     init {
@@ -42,14 +44,17 @@ class Display() : JPanel() {
         val options = JFrame("Options")
         val toggleContext = JButton("toggle Contexts")
         val toggleTargets = JButton("toggle targets")
+        val toggleShields = JButton("toggle shields")
         options.layout = FlowLayout()
         options.add(toggleContext)
         options.add(toggleTargets)
+        options.add(toggleShields)
         options.pack()
         options.isVisible = true
 
         toggleContext.addActionListener { e ->  toggleContext()}
         toggleTargets.addActionListener { e ->  toggleTarget()}
+        toggleShields.addActionListener {e -> toggleShields()}
     }
 
     override fun paint(g: Graphics) {
@@ -75,19 +80,26 @@ class Display() : JPanel() {
 
     fun drawShip(ship: Ship, g: Graphics2D) {
         val save = g.transform
-        val strokesave = g.stroke
-        //draw agent
         g.translate(ship.pos.x, ship.pos.y)
         g.rotate(ship.heading.toPolar().y)
-        g.scale(ship.size.toDouble(), ship.size.toDouble())
         g.color =  if (ship.agent is PlayerAgent) Color.green else Color.white
         g.color = ship.team?.color
+        val shape = shipShape(ship)
         g.fill(shape)
         g.color = Color.black
-        g.stroke = BasicStroke(1/ship.size.toFloat())
         g.draw(shape)
+        if (showShields) {
+
+            for (shield in ship.shields) {
+                val health = (shield.health/shield.maxHealth) * 0.6
+                val shieldColor = Color.getHSBColor(health.toFloat(),1.0f,1.0f)
+                g.color= shieldColor
+                val rec = Rectangle2D.Double(shield.corners[0].x,shield.corners[0].y, shield.width,shield.height)
+                g.draw(rec)
+            }
+
+        }
         g.transform = save
-        g.stroke = strokesave
 
         //draw context map and other vectors
         g.translate(ship.pos.x, ship.pos.y)
@@ -104,8 +116,8 @@ class Display() : JPanel() {
                     (dir.x * mag * linel * linel).toInt(),
                     (dir.y * mag * linel * linel).toInt()
                 )
-                mag = agent.rotationInterest.bins[i]
-                mag = if (mag < 0) 0.0 else mag
+                mag = agent.shieldAwareness.bins[i]
+                mag = if (mag < 0) -mag else mag
                 g.color = Color.red
                 g.drawLine(
                     0,
@@ -154,13 +166,16 @@ class Display() : JPanel() {
         }
 
     companion object {
-        val shape: Path2D = Path2D.Double()
-
-        init {
-            shape.moveTo(0.0, -2.0)
-            shape.lineTo(-1.0, 2.0)
-            shape.lineTo(1.0, 2.0)
+        fun shipShape(ship: Ship) : Path2D {
+            val shape: Path2D = Path2D.Double()
+            val start = ship.shape[0].mult(ship.size.toDouble())
+            shape.moveTo(start.x,start.y)
+            for (vec in ship.shape.subList(1,ship.shape.size)) {
+                val scaled = vec.mult(ship.size.toDouble())
+                shape.lineTo(scaled.x,scaled.y)
+            }
             shape.closePath()
+            return shape
         }
 
         val canvasHeight = 1000
@@ -235,6 +250,10 @@ class Display() : JPanel() {
 
     fun toggleTarget() {
         showTargets = !showTargets
+    }
+
+    fun toggleShields() {
+        showShields = !showShields
     }
 
 }

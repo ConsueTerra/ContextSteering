@@ -19,7 +19,7 @@ abstract class ContextMap {
 
     companion object {
         const val NUMBINS = 16
-        const val NUMLINBINS = 8
+        const val NUMLINBINS = 12
         val bindir = Array(NUMBINS) {
                 i ->
             val theta = (2.0 * Math.PI / NUMBINS * i)

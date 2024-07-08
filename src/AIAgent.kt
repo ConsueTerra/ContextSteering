@@ -65,6 +65,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
 
         faceMouse.clearContext()
         faceMouse.populateContext()
+        shieldAwareness.populateContext()
 
         //momentum.clearContext()
         squadFormation.populateContext()
@@ -83,8 +84,10 @@ class AIAgent(ship: Ship) : Agent(ship) {
         movementInterest.clipZero() //safeguard against neg weights
 
         rotationInterest.addContext(movementInterest)
-        rotationInterest.multScalar(0.2)
+        rotationInterest.multScalar(0.8)
         rotationInterest.addContext(faceMouse)
+        rotationInterest.addContext(shieldAwareness)
+        rotationInterest.clipZero()
         //rotationInterest.addContext(ContextMap.scaled(momentum,0.8))
 
         danger.addContext(borderDanger)
@@ -199,7 +202,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
             clearContext()
             headingHist.multScalar(hist)
             val velNorm = ship.heading
-            headingHist.dotContext(velNorm,0.7,(1-hist))
+            headingHist.dotContext(velNorm,1.0,(1-hist))
             dotContext(velNorm.mult(-1.0),0.0,weight, clipZero = true)
             multScalar(-1.0)
             for (i in 0 until NUMBINS) {
@@ -310,7 +313,21 @@ class AIAgent(ship: Ship) : Agent(ship) {
             val throttleWeight = min(throttleFalloff*weight / dist, maxWeight)
             lincontext!!.apply(lincontext!!.populatePeak(dist/throttleFalloff, throttleWeight))
         }
+    }
 
+    val shieldAwareness: ContextMap = object  : ContextMap() {
+        val weight = 1.5
+        val maxWeight = 5.0
+        val power = 2.0
+        override fun populateContext() {
+            clearContext()
+            for (shield in this@AIAgent.ship.shields) {
+                val offset = shield.center.add(this@AIAgent.ship.pos.mult(1.0)).normal()
+                val damage = ((shield.maxHealth - shield.health)/shield.maxHealth).pow(power)
+                dotContext(offset,-0.5, min(damage*weight,maxWeight))
+            }
+            multScalar(-1.0)
+        }
     }
 
     /**

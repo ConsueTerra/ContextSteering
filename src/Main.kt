@@ -1,6 +1,6 @@
 object Main {
     @JvmStatic
     fun main(args: Array<String>) {
-        val sim = Simulation(40)
+        val sim = Simulation(5)
     }
 }

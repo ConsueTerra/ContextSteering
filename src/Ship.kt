@@ -15,16 +15,19 @@ abstract class Ship (
 ) {
     open val MAXSPEED = 10.0
     val THRUSTPOWER = 10.0
+    val shape = listOf(Vector2D(0.0, -2.0),Vector2D(-1.0, 2.0),Vector2D(1.0,2.0))
 
     val offset : Double = Math.random()
     lateinit var agent : Agent
     var squad : Squad? = null
     var team: Team? = null
-    var health = 100;
+    var health = 100.0;
     val shields: MutableList<Shield> = ArrayList()
     val weapons: MutableList<Weapon> = ArrayList()
 
-
+    init {
+        arrangeShields()
+    }
 
     constructor(w: Int, h: Int) :
             this(Vector2D(0.0, 0.0)) {
@@ -40,8 +43,34 @@ abstract class Ship (
         agent = AIAgent(this)
     }
 
+    abstract fun arrangeShields()
 
-    fun handleMovement() {
+    fun tick() {
+        handleShields()
+        handleMovement()
+        fireWeapons()
+    }
+
+    fun fireWeapons() {
+        //TODO
+    }
+
+    fun handleShields() {
+        val sum = shields.sumOf {(it.maxHealth - it.health)/it.health}
+        val weights = shields.map {(it.maxHealth - it.health)/it.health / sum}
+        for (i in 0 until shields.size) {
+            shields[i].tick(mod = weights[i])
+        }
+        if (health < 0.0) killship()
+    }
+
+    fun killship() {
+        Simulation.ships.remove(this)
+        team?.ships?.remove(this)
+        squad?.ships?.remove(this)
+    }
+
+    private fun handleMovement() {
         val output  = agent.steer()
         heading = output.newHeading
         thrust = output.newThrust

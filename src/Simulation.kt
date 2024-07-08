@@ -20,7 +20,7 @@ class Simulation(numAIShips: Int) : ActionListener {
     fun tick() {
         mouseCords = display.mouseCords
         for (ship in ships) {
-            ship.handleMovement()
+            ship.tick()
             var accel = ship.thrust
             accel = accel.mult(1 / ship.mass)
             ship.velocity = ship.velocity.mult(DRAGFORCE)//dragging force
@@ -38,8 +38,13 @@ class Simulation(numAIShips: Int) : ActionListener {
         for (i in 0 until numteams){
             teams.add(Team())
         }
-        if (false) {
-            val playerShip = object : Ship(Vector2D(0.0, 0.0),mass = 65.0, size = 65){}
+        if (true) {
+            //val playerShip = object : Ship(Vector2D(0.0, 0.0),mass = 65.0, size = 65) {
+            //    override fun arrangeShields() {
+            //        (ShipTypes.Capital::arrangeShields)(this as ShipTypes.Capital)
+            //    }
+            //}
+            val playerShip = ShipTypes.Capital()
             playerShip.pos = Vector2D(W/2.0, H/2.0)
             playerShip.agent = PlayerAgent(playerShip)
             ships.add(playerShip)
@@ -90,10 +95,11 @@ class Simulation(numAIShips: Int) : ActionListener {
     }
 
     companion object {
-        var ships: MutableList<Ship> = ArrayList()
-        var teams: MutableList<Team> = ArrayList()
-        const val W = 4000
-        const val H = 4000
+        val ships: MutableList<Ship> = ArrayList()
+        val teams: MutableList<Team> = ArrayList()
+        val particles : MutableList<Particle> = ArrayList()
+        const val W = 1000
+        const val H = 1000
         var mouseCords = Vector2D(0.0,0.0)
         const val DRAGFORCE = 0.95
     }
