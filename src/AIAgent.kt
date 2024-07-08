@@ -192,15 +192,16 @@ class AIAgent(ship: Ship) : Agent(ship) {
      */
     var commitment: ContextMap = object : ContextMap() {
         val weight = 1.0
-        val hist = 0.8
+        val hist = 0.95
         var headingHist: ContextMap = object : ContextMap() {}
 
         override fun populateContext() {
             clearContext()
             headingHist.multScalar(hist)
             val velNorm = ship.heading
-            headingHist.dotContext(velNorm,1.0,(1-hist))
-            dotContext(velNorm,-1.0,weight, clipZero = false)
+            headingHist.dotContext(velNorm,0.7,(1-hist))
+            dotContext(velNorm.mult(-1.0),0.0,weight, clipZero = true)
+            multScalar(-1.0)
             for (i in 0 until NUMBINS) {
                 bins[i] *= headingHist.bins[i]
             }
