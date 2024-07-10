@@ -86,12 +86,13 @@ class AIAgent(ship: Ship) : Agent(ship) {
         rotationInterest.addContext(movementInterest)
         rotationInterest.multScalar(0.8)
         rotationInterest.addContext(faceMouse)
-        rotationInterest.addContext(shieldAwareness)
+        //rotationInterest.addContext(shieldAwareness)
         rotationInterest.clipZero()
         //rotationInterest.addContext(ContextMap.scaled(momentum,0.8))
 
         danger.addContext(borderDanger)
         danger.addContext(shipDanger)
+        //danger.addContext(ContextMap.scaled(movementInterest,-1.0))
 
         //There are no resources that talk about steering where the heading of a ship is
         // different from where its accelerating, enabling strafing and drifting, movement and
@@ -247,7 +248,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      */
     var offsetSeekMouse: ContextMap = object : ContextMap() {
         val offsetDist = 1400.0
-        val weight = 1.0
+        val weight = 0.0
         val dotShift = 0.0
         override fun populateContext() {
             val center: Vector2D = Simulation.mouseCords
@@ -316,17 +317,35 @@ class AIAgent(ship: Ship) : Agent(ship) {
     }
 
     val shieldAwareness: ContextMap = object  : ContextMap() {
-        val weight = 1.5
-        val maxWeight = 5.0
+        val weight = 0.5
         val power = 2.0
+        val histDecay = 0.9
+        val incomingFire : ContextMap = object : ContextMap() {}
         override fun populateContext() {
             clearContext()
+            incomingFire.multScalar(histDecay)
             for (shield in this@AIAgent.ship.shields) {
-                val offset = shield.center.add(this@AIAgent.ship.pos.mult(1.0)).normal()
-                val damage = ((shield.maxHealth - shield.health)/shield.maxHealth).pow(power)
-                dotContext(offset,-0.5, min(damage*weight,maxWeight))
+                if (this@AIAgent.ship.shields.size <= 1) return
+                val centerTrans = shield.transformCords(centertrans = true)[0]
+                val offset = centerTrans.add(this@AIAgent.ship.pos.mult(-1.0)).normal()
+                incomingFire.dotContext(offset,-0.6,shield.tickDamage)
+
             }
-            multScalar(-1.0)
+            for (i in 0 until NUMBINS) {
+                val dir = bindir[i]
+                val rotatedCenters = this@AIAgent.ship.shields.map {it.transformCords(true, dir)[0]}
+                for (j in 0 until this@AIAgent.ship.shields.size) {
+                    val shield = this@AIAgent.ship.shields[j]
+                    val damage = ((shield.maxHealth - shield.health)/shield.maxHealth).pow(power)
+                    var response = 0.0
+                    for (k in 0 until NUMBINS) {
+                        val dot = max(bindir[k].mult(incomingFire.bins[k]).dot(rotatedCenters[j].normal()),0.0)
+                        response += dot
+                    }
+                    bins[i] += response*damage*weight
+                }
+
+            }
         }
     }
 

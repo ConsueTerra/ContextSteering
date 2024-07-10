@@ -78,9 +78,9 @@ abstract class ContextMap {
      */
     fun dotContext(direction: Vector2D, shift: Double, scale: Double,power: Double = 1.0, clipZero: Boolean = true) {
         for (i in 0 until NUMBINS) {
-            bins[i] += (bindir[i].dot(direction) + shift).pow(power) * scale
+            val value = (bindir[i].dot(direction) + shift).pow(power) * scale
+            bins[i] += if (clipZero) max(0.0,value) else value
         }
-        if (clipZero) clipZero()
     }
 
     fun addContext(other: ContextMap) {
@@ -91,12 +91,14 @@ abstract class ContextMap {
     }
 
     fun addScalar(`val`: Double) {
+        require(!`val`.isNaN()) { "scalar value is Nan" }
         for (i in 0 until NUMBINS) {
             bins[i] += `val`
         }
     }
 
     fun multScalar(`val`: Double) {
+        require(!`val`.isNaN()) { "scalar value is Nan" }
         for (i in 0 until NUMBINS) {
             bins[i] *= `val`
         }

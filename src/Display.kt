@@ -22,7 +22,8 @@ import kotlin.math.pow
 class Display() : JPanel() {
     val frame : JFrame
     var zoom = canvasWidth.toDouble() / Simulation.W.toDouble()
-    var topLeft : Vector2D = Vector2D((canvasWidth-Simulation.W)*zoom, (canvasHeight-Simulation.H)*zoom)
+    //var topLeft : Vector2D = Vector2D((canvasWidth-Simulation.W)*zoom, (canvasHeight-Simulation.H)*zoom)
+    var topLeft : Vector2D = Vector2D(0.0, 0.0)
     var canvasTransform : AffineTransform = AffineTransform()
     var showContext = true
     var showTargets = true
@@ -40,6 +41,14 @@ class Display() : JPanel() {
         addMouseListener(panningHandler)
         addMouseMotionListener(panningHandler)
         addMouseWheelListener(panningHandler)
+
+        //use the inverse transform to figure out where fix the canvas
+        val g = this.graphics as Graphics2D
+        val globalTransform : AffineTransform = g.transform
+        panZoom(g)
+        val point = g.transform.inverseTransform(Point2D.Double(0.0,0.0),null)
+        topLeft = Vector2D(point.x,point.y)
+        g.transform = globalTransform
 
         val options = JFrame("Options")
         val toggleContext = JButton("toggle Contexts")
@@ -63,6 +72,9 @@ class Display() : JPanel() {
         panZoom(g)
         for (ship in Simulation.ships) {
             drawShip(ship, g)
+        }
+        for (particle in Simulation.particles) {
+            drawParticle(particle,g)
         }
         g.color = Color.blue
         g.drawRect(0,0,Simulation.W,Simulation.H)
@@ -154,6 +166,15 @@ class Display() : JPanel() {
         }
     }
 
+    fun drawParticle(particle: Particle, g: Graphics2D) {
+        g.color = Color.RED
+        val save = g.transform
+        g.translate(particle.pos.x, particle.pos.y)
+        g.drawOval(0,0,particle.size.toInt(),particle.size.toInt())
+        g.transform = save
+
+    }
+
     val mouseCords: Vector2D
         /**
          * The current mouse cords, if the mouse its outside the bounds then the center of the canvas
@@ -236,7 +257,13 @@ class Display() : JPanel() {
             zoom *= (1.5).pow(amount)
         }
 
-        override fun mouseClicked(e: MouseEvent?) {}
+        override fun mouseClicked(e: MouseEvent?) {
+            if (e != null) {
+                val cords = canvasTransform.inverseTransform(e.point, null)
+                Simulation.spawnParticle(Vector2D(cords.x,cords.y))
+            }
+
+        }
         override fun mouseEntered(e: MouseEvent?) {}
         override fun mouseExited(e: MouseEvent?) {}
         override fun mouseMoved(e: MouseEvent?) {}

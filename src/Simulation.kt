@@ -1,5 +1,8 @@
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
+import java.awt.event.MouseEvent
+import java.awt.event.MouseListener
+import java.util.concurrent.CopyOnWriteArrayList
 import javax.swing.Timer
 
 class Simulation(numAIShips: Int) : ActionListener {
@@ -31,6 +34,10 @@ class Simulation(numAIShips: Int) : ActionListener {
         for (team in teams) {
             team.squads.forEach {it.updateHeading()}
         }
+
+        for (particle in particles) {
+            particle.tick()
+        }
     }
 
     fun setup(numAIAgents: Int) {
@@ -38,7 +45,7 @@ class Simulation(numAIShips: Int) : ActionListener {
         for (i in 0 until numteams){
             teams.add(Team())
         }
-        if (true) {
+        if (false) {
             //val playerShip = object : Ship(Vector2D(0.0, 0.0),mass = 65.0, size = 65) {
             //    override fun arrangeShields() {
             //        (ShipTypes.Capital::arrangeShields)(this as ShipTypes.Capital)
@@ -94,13 +101,26 @@ class Simulation(numAIShips: Int) : ActionListener {
 
     }
 
+
+
     companion object {
-        val ships: MutableList<Ship> = ArrayList()
+        val ships: MutableList<Ship> = CopyOnWriteArrayList()
         val teams: MutableList<Team> = ArrayList()
-        val particles : MutableList<Particle> = ArrayList()
+        val particles : MutableList<Particle> = CopyOnWriteArrayList()
         const val W = 1000
         const val H = 1000
         var mouseCords = Vector2D(0.0,0.0)
         const val DRAGFORCE = 0.95
+
+        fun spawnParticle(cords : Vector2D) {
+            val velocity = Vector2D(
+                (Math.random() * 15.0)- 15.0 / 2,
+                (Math.random() * 15.0) - 15.0 / 2
+            )
+            val particle = Particle(velocity = velocity)
+            particle.pos = cords
+            particles.add(particle)
+        }
     }
+
 }

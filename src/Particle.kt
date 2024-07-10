@@ -5,4 +5,15 @@ class Particle(
 ) {
     var pos = Vector2D(0.0,0.0)
     var distroyed = false
+
+    fun tick() {
+        if (distroyed) killParticle()
+        pos = pos.add(velocity)
+
+        if (pos.x < 0.0 || pos.x > Simulation.W || pos.y < 0.0 || pos.y > Simulation.H) killParticle()
+    }
+
+    private fun killParticle() {
+        Simulation.particles.remove(this)
+    }
 }

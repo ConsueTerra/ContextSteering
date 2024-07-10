@@ -1,3 +1,4 @@
+import kotlin.math.PI
 import kotlin.math.min
 
 class Shield(
@@ -10,31 +11,40 @@ class Shield(
 ) {
 
     var health = maxHealth
+    var tickDamage = 0.0
     val corners = listOf(
         Vector2D(width*-0.5, height*-0.5).add(center),
         Vector2D(width*0.5, height*-0.5).add(center),
-        Vector2D(width*-0.5, height*0.5).add(center),
         Vector2D(width*0.5, height*0.5).add(center),
+        Vector2D(width*-0.5, height*0.5).add(center),
     )
     fun tick(mod :Double = 1.0) {
+        require(!mod.isNaN()) {"NaN value"}
         val cornersTrans = transformCords()
+        tickDamage = 0.0
         for (particle in Simulation.particles) {
             val intersected = polySphereIntersect(cornersTrans, particle.pos, particle.size)
             if (!intersected) continue
             health -= particle.damage
+            tickDamage += particle.damage
             particle.distroyed = true
             if (health < 0.0) {
                 ship.health += health
                 health = 0.0
             }
-            health = min(health + regenRate * mod, maxHealth)
         }
+        health = min(health + regenRate * mod, maxHealth)
     }
 
-    private fun transformCords() : List<Vector2D>{
+    fun transformCords(centertrans: Boolean = false, heading : Vector2D = ship.heading) : List<Vector2D>{
         val output = mutableListOf<Vector2D>()
+        if (centertrans) {
+            val rotated = center.toPolar().add(0.0, heading.toPolar().y - PI/2.0).toCartesian()
+            val cord = rotated.add(ship.pos)
+            return listOf(cord)
+        }
         for (corner in corners) {
-            val rotated = corner.toPolar().add(0.0, ship.heading.toPolar().y).toCartesian()
+            val rotated = corner.toPolar().add(0.0, heading.toPolar().y - PI/2.0).toCartesian()
             val cord = rotated.add(ship.pos)
             output.add(cord)
         }

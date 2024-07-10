@@ -56,7 +56,7 @@ abstract class Ship (
     }
 
     fun handleShields() {
-        val sum = shields.sumOf {(it.maxHealth - it.health)/it.health}
+        val sum = shields.sumOf {(it.maxHealth - it.health)/it.health} + 1e-6
         val weights = shields.map {(it.maxHealth - it.health)/it.health / sum}
         for (i in 0 until shields.size) {
             shields[i].tick(mod = weights[i])
