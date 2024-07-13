@@ -77,6 +77,8 @@ class AIAgent(ship: Ship) : Agent(ship) {
         shipDanger.clearContext()
         shipDanger.populateContext()
 
+        particleDanger.populateContext()
+
         movementInterest.addContext(wander)
         movementInterest.addContext(offsetSeekMouse)
         movementInterest.addContext(squadFormation)
@@ -84,15 +86,20 @@ class AIAgent(ship: Ship) : Agent(ship) {
         movementInterest.clipZero() //safeguard against neg weights
 
         rotationInterest.addContext(movementInterest)
-        rotationInterest.multScalar(0.8)
+        rotationInterest.multScalar(0.2)
         rotationInterest.addContext(faceMouse)
-        rotationInterest.addContext(shieldAwareness, subtract = true)
+        var temp : ContextMap = object : ContextMap() {}
+        temp.addScalar(1.0)
+        temp.maskContext(shieldAwareness, threshold = 1.0)
+        //rotationInterest.addContext(temp)
+        rotationInterest.softMaskContext(shieldAwareness,threshold = 1.0)
         rotationInterest.clipZero()
         //rotationInterest.addContext(ContextMap.scaled(momentum,0.8))
 
         danger.addContext(borderDanger)
         danger.addContext(shipDanger)
-        danger.addContext(shieldAwareness)
+        danger.addContext(shieldAwareness, scale = 0.5)
+        danger.addContext(particleDanger)
 
         //There are no resources that talk about steering where the heading of a ship is
         // different from where its accelerating, enabling strafing and drifting, movement and
@@ -110,7 +117,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
             max(min(ship.velocity.mag() / ship.MAXSPEED*2, 1.0), 0.0).pow(1.0)
         //println(rotationMovementPrior)
         //\rotationMovementPrior = 0.0;
-        val temp: ContextMap = object : ContextMap(movementInterest) {}
+        temp = object : ContextMap(movementInterest) {}
         val movementWeight = (1 - rotationMovementPrior).pow(0.5)
         movementInterest.multScalar(movementWeight)
         movementInterest.addContext(
@@ -176,7 +183,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      */
     var wander: ContextMap = object : ContextMap(linearbins = true) {
         val weight = 0.5
-        val dotShift = 1.0
+        val dotShift = 1.5
         val jitterRate = 2e4
         override fun populateContext() {
             val timeoffset = ship.offset * jitterRate
@@ -247,8 +254,8 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var offsetSeekMouse: ContextMap = object : ContextMap() {
-        val offsetDist = 1400.0
-        val weight = 0.0
+        val offsetDist = 700.0
+        val weight = 1.0
         val dotShift = 0.0
         override fun populateContext() {
             val center: Vector2D = Simulation.mouseCords
@@ -317,9 +324,10 @@ class AIAgent(ship: Ship) : Agent(ship) {
     }
 
     val shieldAwareness: ContextMap = object  : ContextMap() {
-        val weight = 0.5
-        val power = 1.0
+        val weight = 0.4
+        val power = 2.0
         val histDecay = 0.95
+        val criticalPoint = 0.1
         val incomingFire : ContextMap = object : ContextMap() {}
         override fun populateContext() {
             clearContext()
@@ -337,7 +345,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
                 for (j in 0 until this@AIAgent.ship.shields.size) {
                     val shield = this@AIAgent.ship.shields[j]
                     val offset = rotatedCenters[j].add(this@AIAgent.ship.pos.mult(-1.0)).normal()
-                    val damage = ((shield.maxHealth - shield.health)/shield.maxHealth).pow(power)
+                    val damage = ((shield.maxHealth - shield.health)/(shield.maxHealth*(1-criticalPoint))).pow(power)
                     val response = object : ContextMap() {}
                     response.dotContext(offset,-0.3,damage*weight)
                     for (k in 0 until NUMBINS) {
@@ -372,7 +380,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
             for (otherShip in Simulation.ships) {
                 if (otherShip == this@AIAgent.ship) continue
                 val target = otherShip.pos.add(lookAhead(otherShip, futuremod = 1.0, useMax = true))
-                var targetOffset = ship.pos.add(target.mult(-1.0))
+                var targetOffset = target.add(ship.pos.mult(-1.0))
                 val targetDist = targetOffset.mag() + 1e-4
                 if (targetDist < mindist) {
                     mindist = targetDist
@@ -380,7 +388,53 @@ class AIAgent(ship: Ship) : Agent(ship) {
                 }
                 targetOffset = targetOffset.normal()
                 val dangerWeight = (otherShip.size / shipWeightSize) * (ship.MAXSPEED /shipWeightSpeed)
-                dotContext(targetOffset,dotShift,-1*(falloff*dangerWeight)/targetDist, power = 1.0, true)
+                dotContext(targetOffset,dotShift,(falloff*dangerWeight)/targetDist, power = 1.0, true)
+            }
+        }
+    }
+
+    /**
+     * Makes the agent avoid particles, the smaller the distance between a ship and particle the higher
+     * the danger, ignores particles originating from the ship
+     *
+     * This Context is meant for **`danger`**
+     *
+     *  * **`falloff`** controls how this behavior scales with distance, higher
+     * values will cause higher danger and agents will react faster
+     *  * **`dotShift`** shifts the dot product, giving danger to orthogonal
+     * directions
+     */
+    var particleDanger: ContextMap = object : ContextMap() {
+        val falloff = 20.0
+        val dotShift = -0.0
+        val shipWeightSize = 10.0
+        val shipWeightSpeed = 20.0
+        val particleWeight = 10.0
+        val maxWeight = 3.0
+
+        override fun populateContext() {
+            clearContext()
+            for (particle in Simulation.particles) {
+                if (particle.source == this@AIAgent.ship) continue
+                //first calculate if particle is moving towards the target
+                // do not use forecast
+                val offset = particle.pos.add(ship.pos.mult(-1.0))
+                val relativeVelocity = particle.velocity.add(ship.velocity.mult(-1.0))
+                if (relativeVelocity.dot(offset) > 0) continue
+                val targets = this@AIAgent.ship.shields.map {it.transformCords(true)[0]}
+                for (target in targets) {
+                    var targetOffset = particle.pos.add(target.mult(-1.0))
+                    val targetDist = targetOffset.mag() + 1e-4
+                    targetOffset = targetOffset.normal()
+                    val dangerWeight = ((ship.size / shipWeightSize)
+                            * (ship.MAXSPEED /shipWeightSpeed)
+                            *(particle.damage/particleWeight)
+                            /this@AIAgent.ship.shields.size.toDouble())
+                    dotContext(targetOffset,dotShift,min((falloff*dangerWeight)/targetDist,maxWeight), power = 1.0)
+                }
+                //forecast the particles position and calculate danger as normal
+                //val target = offset//particle.pos.add(lookAhead(particle.pos,particle.velocity, futuremod = 2.0))
+
             }
         }
     }
@@ -433,6 +487,16 @@ class AIAgent(ship: Ship) : Agent(ship) {
         val vel = if (useMax) {ship.MAXSPEED} else {ship.velocity.mag()}
         val t = dist/(vel*futuremod)
         val lookAhead =  other.velocity.mult(t)
+        return lookAhead
+    }
+
+    private fun lookAhead(pos : Vector2D, velocity : Vector2D,
+                          futuremod : Double = 1.0, useMax : Boolean = false) : Vector2D {
+        val offset = pos.add(ship.pos.mult(-1.0))
+        val dist = offset.mag() + 1e-4
+        val vel = if (useMax) {ship.MAXSPEED} else {ship.velocity.mag()}
+        val t = dist/(vel*futuremod)
+        val lookAhead =  velocity.mult(t)
         return lookAhead
     }
 

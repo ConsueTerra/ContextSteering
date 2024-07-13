@@ -46,9 +46,9 @@ abstract class Ship (
     abstract fun arrangeShields()
 
     fun tick() {
-        handleShields()
         handleMovement()
         fireWeapons()
+        handleShields()
     }
 
     fun fireWeapons() {

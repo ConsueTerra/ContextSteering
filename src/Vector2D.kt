@@ -1,4 +1,5 @@
 import kotlin.String
+import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
@@ -67,8 +68,8 @@ class Vector2D(x: Double, y: Double) {
 
     fun toCartesian(): Vector2D {
         return Vector2D(
-            (x * cos(y)),
-            (x * sin(y))
+            (x * cos(y - PI/2.0)),
+            (x * sin(y- PI/2.0))
         )
     }
 

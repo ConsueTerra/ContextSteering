@@ -83,9 +83,9 @@ abstract class ContextMap {
         }
     }
 
-    fun addContext(other: ContextMap, subtract : Boolean = false) {
+    fun addContext(other: ContextMap, scale: Double = 1.0) {
         for (i in 0 until NUMBINS) {
-            bins[i] += (if (subtract) -1.0 else 1.0)* other.bins[i]
+            bins[i] += scale * other.bins[i]
         }
         other.lincontext?.let { lincontext?.addContext(it)}
     }

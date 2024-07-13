@@ -38,6 +38,11 @@ class Simulation(numAIShips: Int) : ActionListener {
         for (particle in particles) {
             particle.tick()
         }
+        if (Math.random() < 0.3) {
+            val center = Vector2D(W/2.0,H/2.0)
+            targetShip?.let { spawnParticle(Vector2D(W/2.0,H/2.0), it.pos.add(center.mult(-1.0))) }
+        }
+
     }
 
     fun setup(numAIAgents: Int) {
@@ -107,16 +112,15 @@ class Simulation(numAIShips: Int) : ActionListener {
         val ships: MutableList<Ship> = CopyOnWriteArrayList()
         val teams: MutableList<Team> = ArrayList()
         val particles : MutableList<Particle> = CopyOnWriteArrayList()
-        const val W = 1000
-        const val H = 1000
+        const val W = 2000
+        const val H = 2000
         var mouseCords = Vector2D(0.0,0.0)
         const val DRAGFORCE = 0.95
+        var targetShip: Ship? = null
 
-        fun spawnParticle(cords : Vector2D) {
-            val velocity = Vector2D(
-                (Math.random() * 15.0)- 15.0 / 2,
-                (Math.random() * 15.0) - 15.0 / 2
-            )
+        fun spawnParticle(cords : Vector2D, dir : Vector2D = Vector2D(0.0,0.0),
+                          speed : Double = 10.0, spread : Double= 0.5) {
+            var velocity = Vector2D(speed,((Math.random() * spread) - spread / 2) + dir.toPolar().y).toCartesian()
             val particle = Particle(velocity = velocity)
             particle.pos = cords
             particles.add(particle)

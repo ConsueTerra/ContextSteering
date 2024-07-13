@@ -39,12 +39,12 @@ class Shield(
     fun transformCords(centertrans: Boolean = false, heading : Vector2D = ship.heading) : List<Vector2D>{
         val output = mutableListOf<Vector2D>()
         if (centertrans) {
-            val rotated = center.toPolar().add(0.0, heading.toPolar().y - PI/2.0).toCartesian()
+            val rotated = center.toPolar().add(0.0, heading.toPolar().y).toCartesian()
             val cord = rotated.add(ship.pos)
             return listOf(cord)
         }
         for (corner in corners) {
-            val rotated = corner.toPolar().add(0.0, heading.toPolar().y - PI/2.0).toCartesian()
+            val rotated = corner.toPolar().add(0.0, heading.toPolar().y).toCartesian()
             val cord = rotated.add(ship.pos)
             output.add(cord)
         }

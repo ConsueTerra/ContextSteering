@@ -129,7 +129,7 @@ class Display() : JPanel() {
                     (dir.y * mag * linel * linel).toInt()
                 )
                 mag = agent.shieldAwareness.bins[i]
-                mag = if (mag < 0) -mag else mag
+                mag = if (mag < 0) 0.0 else mag
                 g.color = Color.red
                 g.drawLine(
                     0,
@@ -260,7 +260,12 @@ class Display() : JPanel() {
         override fun mouseClicked(e: MouseEvent?) {
             if (e != null) {
                 val cords = canvasTransform.inverseTransform(e.point, null)
-                Simulation.spawnParticle(Vector2D(cords.x,cords.y))
+                val ship = Simulation.ships.first { ship ->
+                    ship.shields.any {
+                    polySphereIntersect(it.transformCords(), Vector2D(cords.x,cords.y), 1.0) } }
+                // dir = Vector2D(Math.random()-0.5,Math.random()-0.5).normal()
+                //Simulation.spawnParticle(Vector2D(cords.x,cords.y),dir)
+                Simulation.targetShip = ship
             }
 
         }

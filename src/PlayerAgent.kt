@@ -48,7 +48,7 @@ class PlayerAgent(ship: Ship) : Agent(ship) {
         if (QPressed) keyHeading += 0.1
         if (EPressed) keyHeading += -0.1
         keyThrust = if(keyThrust.mag() > 1e-5) keyThrust.normal() else keyThrust
-        var heading = ship.heading.toPolar().add(0.0, keyHeading - PI/2.0).toCartesian().normal()
+        var heading = ship.heading.toPolar().add(0.0, keyHeading).toCartesian().normal()
         val oldthrust = if(ship.thrust.mag() > 1e-5) ship.thrust.normal() else ship.thrust
         var thrust = oldthrust.add(keyThrust)
         thrust = if (thrust.mag() > 1e-5) thrust.normal() else thrust
