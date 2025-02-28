@@ -46,11 +46,11 @@ class Simulation(numAIShips: Int) : ActionListener {
     }
 
     fun setup(numAIAgents: Int) {
-        val numteams = (Math.random()*2+2).toInt()
+        val numteams = (Math.random()*2+3).toInt()
         for (i in 0 until numteams){
             teams.add(Team())
         }
-        if (false) {
+        if (true) {
             //val playerShip = object : Ship(Vector2D(0.0, 0.0),mass = 65.0, size = 65) {
             //    override fun arrangeShields() {
             //        (ShipTypes.Capital::arrangeShields)(this as ShipTypes.Capital)
@@ -77,7 +77,7 @@ class Simulation(numAIShips: Int) : ActionListener {
     }
 
     fun setupSquads(team: Team) {
-        val maxsize = 4
+        val maxsize = 5
         val minSize = 3
         var squadSize = (Math.random()*(maxsize-minSize)+minSize).toInt()
         var j = 0
@@ -112,8 +112,8 @@ class Simulation(numAIShips: Int) : ActionListener {
         val ships: MutableList<Ship> = CopyOnWriteArrayList()
         val teams: MutableList<Team> = ArrayList()
         val particles : MutableList<Particle> = CopyOnWriteArrayList()
-        const val W = 2000
-        const val H = 2000
+        const val W = 4000
+        const val H = 4000
         var mouseCords = Vector2D(0.0,0.0)
         const val DRAGFORCE = 0.95
         var targetShip: Ship? = null

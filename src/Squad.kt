@@ -13,7 +13,7 @@ class Squad (
         if (i==0) return ships[0].pos
 
         val cumulativeDistance = ships.subList(0,i).fold(0.0) { acc, thing -> acc + thing.size * distance + mindistance }
-        val angle = (if (i % 2 == 0) PI/4.0 else -PI/4.0) - PI / 2
+        val angle = (if (i % 2 == 0) PI/4.0 else -PI/4.0)// - PI / 2
         val targetOffset = heading.mult(-1.0).toPolar().add(0.0,angle).toCartesian().mult(cumulativeDistance)
         return ships[0].pos.add(targetOffset)
     }

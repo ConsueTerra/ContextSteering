@@ -254,7 +254,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
      *
      */
     var offsetSeekMouse: ContextMap = object : ContextMap() {
-        val offsetDist = 700.0
+        val offsetDist = 1200.0
         val weight = 1.0
         val dotShift = 0.0
         override fun populateContext() {
@@ -373,7 +373,7 @@ class AIAgent(ship: Ship) : Agent(ship) {
         val falloff = 50.0
         val dotShift = 0.2
         val shipWeightSize = 10.0
-        val shipWeightSpeed = 20.0
+        val shipWeightSpeed = 30.0
 
         override fun populateContext() {
             var mindist = 1e10
